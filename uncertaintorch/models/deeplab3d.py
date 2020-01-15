@@ -78,9 +78,7 @@ class DeepLab3d(nn.Module):
         x = self.dropout(x)
         x = self.interpcat(x,orig)
         x = self.end_2(x)
-        x = self.dropout(x)
-        yhat = self.syn(x)
-        s = self.unc(x)
+        yhat, s = self.syn(x), self.unc(x)
         return yhat, s
 
 

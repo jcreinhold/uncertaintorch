@@ -16,7 +16,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-BASE_WIDTH = 40
+BASE_WIDTH = 32
 EXPANSION = 2
 
 
