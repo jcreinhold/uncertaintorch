@@ -37,7 +37,7 @@ def to_cpu(x):
 
 
 def to_np(x):
-    return to_cpu(x).numpy()
+    return to_cpu(x).numpy() if isinstance(x, torch.Tensor) else x
 
 
 def list_to_np(lst):
