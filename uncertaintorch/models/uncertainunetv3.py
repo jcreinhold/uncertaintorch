@@ -35,7 +35,7 @@ class UncertainUnetv3(UncertainNet):
         self.syn = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
         self.unc = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
 
-    def fwd_bayesian_segnet(self,x):
+    def fwd_bayesian_segnet(self, x):
         orig = x.clone()
         x = self.start_0(x)
         d1 = x.clone()
@@ -67,4 +67,3 @@ class UncertainUnetv3(UncertainNet):
 
     def fwd_full_bayesian(self,x):
         raise NotImplementedError
-

@@ -12,6 +12,8 @@ Created on: January 14, 2019
 
 __all__ = ['jaccard', 'dice', 'largest_cc']
 
+import numpy as np
+from skimage.measure import label
 from torch import Tensor
 
 
@@ -36,4 +38,3 @@ def largest_cc(segmentation):
     assert(labels.max() != 0) # assume at least 1 CC
     lcc = (labels == np.argmax(np.bincount(labels.flat)[1:])+1)
     return lcc
-

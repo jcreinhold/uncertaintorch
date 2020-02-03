@@ -39,7 +39,7 @@ class UncertainUnetv4(UncertainNet):
         self.syn = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
         self.unc = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
 
-    def fwd_bayesian_segnet(self,x):
+    def fwd_bayesian_segnet(self, x):
         orig = x.clone()
         x = self.init(x)
         x = self.start_0(x)
@@ -75,7 +75,7 @@ class UncertainUnetv4(UncertainNet):
         s = self.unc(x)
         return yhat, s
 
-    def fwd_full_bayesian(self,x):
+    def fwd_full_bayesian(self, x):
         orig = x.clone()
         x = self.init(x)
         x = self.dropout(x)
@@ -121,4 +121,3 @@ class UncertainUnetv4(UncertainNet):
         yhat = self.syn(x)
         s = self.unc(x)
         return yhat, s
-

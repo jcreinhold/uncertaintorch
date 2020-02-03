@@ -13,9 +13,7 @@ Created on: December 31, 2019
 __all__ = ['UncertainUnetv2']
 
 from torch import nn
-import torch.nn.functional as F
 
-from ..learn import *
 from .unet_tools import *
 from .uncertainty_tools import *
 

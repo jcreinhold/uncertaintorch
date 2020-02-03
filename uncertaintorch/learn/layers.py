@@ -12,8 +12,6 @@ Created on: December 31, 2019
 
 __all__ = ['Upconv3d', 'GeLU']
 
-import numpy as np
-import torch
 from torch import nn
 import torch.nn.functional as F
 
@@ -56,4 +54,3 @@ class Upconv3d(nn.Module):
 class GeLU(nn.Module):
     def forward(self, x):
         return F.gelu(x)
-

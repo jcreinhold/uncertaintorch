@@ -12,12 +12,12 @@ Created on: December 31, 2019
 
 __all__ = ['UncertainNet']
 
-import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
 
 from ..learn import *
+from ..util import *
 
 
 class UncertainNet(nn.Module):
@@ -114,14 +114,14 @@ class UncertainNet(nn.Module):
             su = sb.mean()
             pred = self.segment_predict(logits, sigma, n_samp)
             pred, y = pred.detach().cpu(), y.detach().cpu()
-            ds, js = to_numpy((dice(pred, y), jaccard(pred, y)))
+            ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
         return loss, pred, (ep, al, sb), (eu, au, su), (ds, js)
 
-    def fwd_bayesian_segnet(x):
+    def fwd_bayesian_segnet(self, x):
         raise NotImplementedError
 
-    def fwd_full_bayesian(x):
+    def fwd_full_bayesian(self, x):
         raise NotImplementedError
 
 

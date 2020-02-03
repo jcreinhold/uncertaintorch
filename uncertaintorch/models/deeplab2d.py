@@ -16,6 +16,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import torchvision
 
 from ..learn import *
 from .unet_tools import *
@@ -38,7 +39,8 @@ def bottleneck(i,b,o,k):
 
 
 class DeepLab2d(nn.Module):
-    def __init__(self, ic, oc, pretrained=True, use_large=True, nc=64, p=0.05, bayesian=False):
+    def __init__(self, ic, oc, pretrained=True, use_large=True, nc=64, p=0.05, beta=25.,
+                 bayesian=False, laplacian=True, segmentation=True):
         super().__init__()
         self.p = p
         self.bayesian = bayesian

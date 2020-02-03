@@ -42,6 +42,3 @@ class Unet(nn.Module):
         x = F.interpolate(self.up1(torch.cat((x,r[-2]),dim=1)),size=r[-3].shape[2:])
         x = self.final(torch.cat((x,r[-3]),dim=1))
         return x
-
-
-

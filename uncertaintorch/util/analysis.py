@@ -51,4 +51,3 @@ def tidy_uncertainty(ep, al, sb):
                 out['value'].append(sbijk)
                 out['phase'].append(phase)
     return pd.DataFrame(out)
-

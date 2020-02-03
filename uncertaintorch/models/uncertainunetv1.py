@@ -12,6 +12,7 @@ Created on: December 31, 2019
 
 __all__ = ['UncertainUnetv1']
 
+from torch import nn
 import torch.nn.functional as F
 
 from .uncertainty_tools import *
@@ -32,7 +33,7 @@ class UncertainUnetv1(UncertainNet):
         self.syn = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
         self.unc = nn.Sequential(*conv(s+ic,s,3,1), nn.Conv3d(s,oc,1))
 
-    def fwd_bayesian_segnet(self,x):
+    def fwd_bayesian_segnet(self, x):
         orig = x.clone()
         x = self.start_0(x)
         x = self.start_1(x)

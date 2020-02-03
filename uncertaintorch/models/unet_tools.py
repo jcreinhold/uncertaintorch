@@ -48,4 +48,3 @@ def unet_up(i,m,o,k1,k2,s1=1,s2=1,scale_factor=2,cat=True,full=False,upk=1):
     layers = [Upconv3d(i//c,i//c,scale_factor,full,upk),
               nn.Sequential(*conv(i,m,k1,s1), *conv(m,o,k2,s2))]
     return nn.ModuleList(layers)
-

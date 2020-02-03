@@ -46,4 +46,3 @@ def list_to_np(lst):
 
 def list_to_item(lst):
     return list(map(lambda x: x.item(), lst))
-

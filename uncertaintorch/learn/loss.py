@@ -119,4 +119,3 @@ class ExtendedCrossEntropy(MaskLossSegmentation):
         x_hat = dist.rsample((self.nsamp,))
         mc_prob = F.softmax(x_hat, dim=2).mean(dim=0)  # channel dim = 2 b/c samples
         return F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
-
