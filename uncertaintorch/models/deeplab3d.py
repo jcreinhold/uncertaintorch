@@ -36,11 +36,12 @@ class DeepLab3d(nn.Module):
             replace_stride_with_dilation=replace_stride_with_dilation)
         self.head = DeepLabHead(width, BASE_WIDTH, mid_channels=width)
         self.orig_conv = nn.Conv3d(ic, 1, 1)
+        self.start_conv = nn.Conv3d(BASE_WIDTH, BASE_WIDTH//8, 1)
         self.mid_conv = nn.Conv3d(width//2, width//4, 1)  #TODO: figure out why //2 on input
         self.end_1 = unet_block(BASE_WIDTH+width//4,BASE_WIDTH,BASE_WIDTH,3,3)
-        self.end_2 = unet_block(BASE_WIDTH+1,BASE_WIDTH,BASE_WIDTH,3,3)
-        self.syn = nn.Sequential(*conv(BASE_WIDTH,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
-        self.unc = nn.Sequential(*conv(BASE_WIDTH,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
+        self.end_2 = unet_block(BASE_WIDTH+BASE_WIDTH//8,BASE_WIDTH,BASE_WIDTH,3,3)
+        self.syn = nn.Sequential(*conv(BASE_WIDTH+1,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
+        self.unc = nn.Sequential(*conv(BASE_WIDTH+1,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
         self.p = p
         self.bayesian = bayesian
         self.segmentation = segmentation
@@ -69,15 +70,17 @@ class DeepLab3d(nn.Module):
 
     def forward(self, x):
         orig = self.orig_conv(x)
-        x, mid = self.backbone(x)  # dropout already in backbone fwd pass
+        x, start, mid = self.backbone(x)  # dropout already in backbone fwd pass
+        start = self.start_conv(start)
         mid = self.mid_conv(mid)
         x = self.head(x)
         x = self.dropout(x)
         x = self.interpcat(x, mid)
         x = self.end_1(x)
         x = self.dropout(x)
-        x = self.interpcat(x,orig)
+        x = self.interpcat(x, start)
         x = self.end_2(x)
+        x = self.interpcat(x, orig)
         yhat, s = self.syn(x), self.unc(x)
         return yhat, s
 

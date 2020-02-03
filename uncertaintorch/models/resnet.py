@@ -160,6 +160,7 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        start = x.clone()
         x = self.maxpool(x)
         x = self.layer1(x)
         mid = x.clone()
@@ -167,7 +168,7 @@ class ResNet(nn.Module):
         x = self.dropout(self.layer2(x))
         x = self.dropout(self.layer3(x))
         x = self.dropout(self.layer4(x))
-        return x, mid
+        return x, start, mid
 
     def forward(self, x):
         return self._forward_impl(x)
