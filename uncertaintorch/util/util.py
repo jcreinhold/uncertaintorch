@@ -33,7 +33,7 @@ def num_params(model):
 
 
 def to_cpu(x):
-    return x.cpu().detach().squeeze()
+    return x.cpu().detach().squeeze() if isinstance(x, torch.Tensor) else x
 
 
 def to_np(x):
