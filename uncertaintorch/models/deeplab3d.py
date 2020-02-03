@@ -31,7 +31,8 @@ class DeepLab3d(nn.Module):
                  bayesian=False, laplacian=True, segmentation=None):
         super().__init__()
         nrswd = 4 - sum([int(rswd) for rswd in replace_stride_with_dilation])
-        self.width = width = (BASE_WIDTH * nrswd) * EXPANSION
+        self.width = width = (BASE_WIDTH * nrswd) * EXPANSION * \
+                             (2 if replace_stride_with_dilation[0] else 1)  #TODO: figure why this needed
         self.backbone = RESNET[backbone_name](in_channels=ic,
             replace_stride_with_dilation=replace_stride_with_dilation)
         self.head = DeepLabHead(width, BASE_WIDTH, mid_channels=width)
