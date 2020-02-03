@@ -37,7 +37,8 @@ class DeepLab3d(nn.Module):
         self.head = DeepLabHead(width, BASE_WIDTH, mid_channels=width)
         self.orig_conv = nn.Conv3d(ic, 1, 1)
         self.start_conv = nn.Conv3d(BASE_WIDTH, BASE_WIDTH//8, 1)
-        self.mid_conv = nn.Conv3d(width//2, width//4, 1)  #TODO: figure out why //2 on input
+        self.mid_conv = nn.Conv3d(width//(1 if replace_stride_with_dilation[0] else 2),
+                                  width//(8 if replace_stride_with_dilation[0] else 4), 1)
         self.end_1 = unet_block(BASE_WIDTH+width//4,BASE_WIDTH,BASE_WIDTH,3,3)
         self.end_2 = unet_block(BASE_WIDTH+BASE_WIDTH//8,BASE_WIDTH,BASE_WIDTH,3,3)
         self.syn = nn.Sequential(*conv(BASE_WIDTH+1,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
