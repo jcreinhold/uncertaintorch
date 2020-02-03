@@ -12,6 +12,8 @@ Created on: December 31, 2019
 
 __all__ = ['TrainTB', 'ValidTB']
 
+import torch
+
 
 def normalize(x):
     dim = x.dim()
@@ -42,9 +44,12 @@ class TrainTB(TB):
         loss_rate, img_rate, hist_rate = tb_rate
         if i % loss_rate == 0:
             j = ((t-1) * n_batches) + i
+            loss = loss.item() if hasattr(loss, 'item') else loss
             self.W.add_scalar('loss/train', loss.item(), j)
             if seg is not None:
                 ds, js = seg
+                ds = ds.item() if hasattr(ds, 'item') else ds
+                js = js.item() if hasattr(js, 'item') else js
                 self.W.add_scalar('dice/train', ds.item(), j)
                 self.W.add_scalar('jaccard/train', js.item(), j)
             if unc is not None:
@@ -59,9 +64,12 @@ class ValidTB(TB):
         loss_rate, img_rate, hist_rate = tb_rate
         if i % loss_rate == 0:
             j = ((t-1) * n_batches) + i
+            loss = loss.item() if hasattr(loss, 'item') else loss
             self.W.add_scalar('loss/valid', loss.item(), j)
             if seg is not None:
                 ds, js = seg
+                ds = ds.item() if hasattr(ds, 'item') else ds
+                js = js.item() if hasattr(js, 'item') else js
                 self.W.add_scalar('dice/valid', ds.item(), j)
                 self.W.add_scalar('jaccard/valid', js.item(), j)
             if unc is not None:
