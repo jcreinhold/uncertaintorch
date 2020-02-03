@@ -34,7 +34,8 @@ class DeepLab3d(nn.Module):
         self.width = width = (BASE_WIDTH * nrswd) * EXPANSION * \
                              (2 if replace_stride_with_dilation[0] else 1)  #TODO: figure why this needed
         self.backbone = RESNET[backbone_name](in_channels=ic,
-            replace_stride_with_dilation=replace_stride_with_dilation)
+            replace_stride_with_dilation=replace_stride_with_dilation,
+            dropout_rate=p, bayesian=bayesian)
         self.head = DeepLabHead(width, BASE_WIDTH, mid_channels=width)
         self.orig_conv = nn.Conv3d(ic, 1, 1)
         self.start_conv = nn.Conv3d(BASE_WIDTH, BASE_WIDTH//8, 1)
