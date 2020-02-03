@@ -45,13 +45,13 @@ class TrainTB(TB):
         if i % loss_rate == 0:
             j = ((t-1) * n_batches) + i
             loss = loss.item() if hasattr(loss, 'item') else loss
-            self.W.add_scalar('loss/train', loss.item(), j)
+            self.W.add_scalar('loss/train', loss, j)
             if seg is not None:
                 ds, js = seg
                 ds = ds.item() if hasattr(ds, 'item') else ds
                 js = js.item() if hasattr(js, 'item') else js
-                self.W.add_scalar('dice/train', ds.item(), j)
-                self.W.add_scalar('jaccard/train', js.item(), j)
+                self.W.add_scalar('dice/train', ds, j)
+                self.W.add_scalar('jaccard/train', js, j)
             if unc is not None:
                 ep, al, sb = unc
                 self.W.add_scalar('epistemic/train', ep, j)
@@ -65,13 +65,13 @@ class ValidTB(TB):
         if i % loss_rate == 0:
             j = ((t-1) * n_batches) + i
             loss = loss.item() if hasattr(loss, 'item') else loss
-            self.W.add_scalar('loss/valid', loss.item(), j)
+            self.W.add_scalar('loss/valid', loss, j)
             if seg is not None:
                 ds, js = seg
                 ds = ds.item() if hasattr(ds, 'item') else ds
                 js = js.item() if hasattr(js, 'item') else js
-                self.W.add_scalar('dice/valid', ds.item(), j)
-                self.W.add_scalar('jaccard/valid', js.item(), j)
+                self.W.add_scalar('dice/valid', ds, j)
+                self.W.add_scalar('jaccard/valid', js, j)
             if unc is not None:
                 epim, alim, sbim, ep, al, sb = unc
                 self.W.add_scalar('epistemic/valid', ep, j)
