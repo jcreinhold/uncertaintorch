@@ -99,6 +99,29 @@ class MaskLossSegmentation(nn.Module):
         raise NotImplementedError
 
 
+class BinaryFocalLoss(MaskLossSegmentation):
+    def __init__(self, beta=25., use_mask=False, weight=None, gamma=2.):
+        super().__init__(beta, use_mask)
+        self.weight = weight
+        self.gamma = gamma
+
+    def loss_fn(self, out, y, reduction='mean'):
+        """ Taken from: https://github.com/catalyst-team/catalyst/ """
+        pred, _ = out
+        logpt = -F.binary_cross_entropy_with_logits(pred, y, reduction='none')
+        pt = torch.exp(logpt)
+        loss = -((1 - pt).pow(self.gamma)) * logpt
+        if self.weight is not None:
+            loss = loss * (self.weight * y + (1 - self.weight) * (1 - y))
+        if reduction == "mean":
+            loss = loss.mean()
+        if reduction == "sum":
+            loss = loss.sum()
+        if reduction == "batchwise_mean":
+            loss = loss.sum(0)
+        return loss
+
+
 class FocalLoss(MaskLossSegmentation):
     def __init__(self, beta=25., use_mask=False, weight=None, gamma=2.):
         super().__init__(beta, use_mask)
@@ -324,12 +347,14 @@ class FocalDiceLoss(MaskLossSegmentation):
 
     def loss_fn(self, out, y, reduction='mean'):
         pred, _ = out
-        log_prob = F.log_softmax(pred, dim=1)
-        prob = torch.exp(log_prob)
-        p = ((1 - prob) ** self.gamma) * log_prob
-        focal_loss = F.nll_loss(p, y, weight=self.weight, reduction=reduction)
+        logpt = -F.binary_cross_entropy_with_logits(pred, y, reduction='none')
+        pt = torch.exp(logpt)
+        focal_loss = -((1 - pt).pow(self.gamma)) * logpt
+        if self.weight is not None:
+            focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
+        average = reduction == 'mean'
+        if average: focal_loss = focal_loss.mean()
         pred = prob_encode(pred)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-        average = reduction == 'mean'
         dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
         return focal_loss + dice_loss
