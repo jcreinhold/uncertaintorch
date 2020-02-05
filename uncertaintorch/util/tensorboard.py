@@ -80,10 +80,11 @@ class ValidTB(TB):
         plot_img = i == 0 and (t % img_rate) == 0
         if plot_img:
             sn = x.size(4) // 2  # slice number
+            # TODO: make the target and prediction images work with 2d
             target = normalize(y[:nv,0:1,:,:,sn]) if seg is None else \
                      y[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,:,:,sn]
             prediction = normalize(pred[:nv,0:1,:,:,sn]) if seg is None else \
-                         pred[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,...]
+                         pred[:nv,:,:,sn].unsqueeze(1) if pred.ndim == 4 else pred[:nv,0:1,:,:,sn]
             self.W.add_images('input/source', normalize(x[:nv,0:1,:,:,sn]), t, dataformats='NCHW')
             self.W.add_images('input/target', target, t, dataformats='NCHW')
             self.W.add_images('output/prediction', prediction, t, dataformats='NCHW')
