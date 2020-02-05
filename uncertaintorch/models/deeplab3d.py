@@ -12,7 +12,6 @@ Created on: December 31, 2019
 
 __all__ = ['DeepLab3d']
 
-import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -28,22 +27,25 @@ RESNET= {'resnet18': resnet18, 'resnet34': resnet34,'resnet50': resnet50,'resnet
 class DeepLab3d(nn.Module):
     def __init__(self, backbone_name='resnet101', ic=1, oc=1, p=0., beta=25.,
                  replace_stride_with_dilation=(False, True, True),
-                 bayesian=False, laplacian=True, segmentation=None):
+                 bayesian=False, laplacian=True, segmentation=None, long_skip=True):
         super().__init__()
         nrswd = 4 - sum([int(rswd) for rswd in replace_stride_with_dilation])
+        self.long_skip = long_skip
         self.width = width = (BASE_WIDTH * nrswd) * EXPANSION * \
                              (2 if replace_stride_with_dilation[0] else 1)  #TODO: figure why this needed
         self.backbone = RESNET[backbone_name](in_channels=ic,
             replace_stride_with_dilation=replace_stride_with_dilation,
             dropout_rate=p, bayesian=bayesian)
         self.head = DeepLabHead(width, BASE_WIDTH, mid_channels=width)
-        self.orig_conv = nn.Conv3d(ic, 1, 1)
-        self.start_conv = nn.Conv3d(BASE_WIDTH, BASE_WIDTH//8, 1)
-        self.mid_conv = nn.Conv3d(width//2, width//4, 1)
+        if long_skip: self.orig_conv = nn.Sequential(*conv(ic, 1, 7, 1))
+        self.start_conv = nn.Sequential(*conv(BASE_WIDTH, BASE_WIDTH//8, 1, 1))
+        self.mid_conv = nn.Sequential(*conv(width//2, width//4, 1, 1))
         self.end_1 = unet_block(BASE_WIDTH+width//4,BASE_WIDTH,BASE_WIDTH,3,3)
         self.end_2 = unet_block(BASE_WIDTH+BASE_WIDTH//8,BASE_WIDTH,BASE_WIDTH,3,3)
-        self.syn = nn.Sequential(*conv(BASE_WIDTH+1,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
-        self.unc = nn.Sequential(*conv(BASE_WIDTH+1,BASE_WIDTH,3,1), nn.Conv3d(BASE_WIDTH,oc,1))
+        self.syn = nn.Sequential(*conv(BASE_WIDTH+(1 if long_skip else 0),BASE_WIDTH,3,1),
+                                 nn.Conv3d(BASE_WIDTH,oc,1))
+        self.unc = nn.Sequential(*conv(BASE_WIDTH+(1 if long_skip else 0),BASE_WIDTH,3,1),
+                                 nn.Conv3d(BASE_WIDTH,oc,1))
         self.p = p
         self.bayesian = bayesian
         self.segmentation = segmentation
@@ -66,12 +68,12 @@ class DeepLab3d(nn.Module):
     def cat(x,r): return torch.cat((x, r), dim=1)
 
     @staticmethod
-    def interp(x,r): return F.interpolate(x, size=r.shape[2:], mode='trilinear', align_corners=True)
+    def interp(x,s): return F.interpolate(x, size=s, mode='trilinear', align_corners=True)
 
-    def interpcat(self,x,r): return self.cat(self.interp(x, r), r)
+    def interpcat(self,x,r): return self.cat(self.interp(x, r.shape[2:]), r)
 
     def forward(self, x):
-        orig = self.orig_conv(x)
+        orig = self.orig_conv(x) if self.long_skip else x.size()
         x, start, mid = self.backbone(x)  # dropout already in backbone fwd pass
         start = self.start_conv(start)
         mid = self.mid_conv(mid)
@@ -82,7 +84,7 @@ class DeepLab3d(nn.Module):
         x = self.dropout(x)
         x = self.interpcat(x, start)
         x = self.end_2(x)
-        x = self.interpcat(x, orig)
+        x = self.interpcat(x, orig) if self.long_skip else self.interp(x, orig)
         yhat, s = self.syn(x), self.unc(x)
         return yhat, s
 
