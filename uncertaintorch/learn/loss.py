@@ -14,6 +14,7 @@ __all__ = ['GaussianDiagLoss',
            'L1OnlyLoss',
            'LaplacianDiagLoss',
            'MSEOnlyLoss',
+           'BinaryFocalLoss',
            'FocalLoss',
            'ExtendedCrossEntropy',
            'DiceLoss',
@@ -99,7 +100,21 @@ class MaskLossSegmentation(nn.Module):
         raise NotImplementedError
 
 
-class BinaryFocalLoss(MaskLossSegmentation):
+class BinaryMaskLossSegmentation(MaskLossSegmentation):
+    def forward(self, out, y):
+        if not self.use_mask:
+            loss = self.loss_fn(out, y)
+        else:
+            tgt, mask = torch.chunk(y, 2, dim=1)
+            mask = mask.float()
+            mask *= self.beta
+            mask[mask == 0.] = 1.
+            mask /= self.beta
+            loss = torch.mean(mask * self.loss_fn(out, tgt, reduction='none'))
+        return loss
+
+
+class BinaryFocalLoss(BinaryMaskLossSegmentation):
     def __init__(self, beta=25., use_mask=False, weight=None, gamma=2.):
         super().__init__(beta, use_mask)
         self.weight = weight
@@ -338,7 +353,7 @@ class DiceLoss(_WeightedLoss):
                               average=self.average)
 
 
-class FocalDiceLoss(MaskLossSegmentation):
+class FocalDiceLoss(BinaryMaskLossSegmentation):
     """ use focal and dice loss together """
     def __init__(self, beta=25., use_mask=False, gamma=2., weight=None):
         super().__init__(beta, use_mask)

@@ -56,7 +56,7 @@ class DeepLab3d(nn.Module):
                 self.criterion = LaplacianDiagLoss(beta) if laplacian else GaussianDiagLoss(beta)
         else:
             if segmentation is not None:
-                self.criterion = FocalLoss(beta, **segmentation)
+                self.criterion = BinaryFocalLoss(beta, **segmentation)
             else:
                 self.criterion = L1OnlyLoss(beta) if laplacian else MSEOnlyLoss(beta)
 
