@@ -81,7 +81,7 @@ class ValidTB(TB):
         if plot_img:
             sn = x.size(4) // 2  # slice number
             target = normalize(y[:nv,0:1,:,:,sn]) if seg is None else \
-                     y[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,...]
+                     y[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,:,:,sn]
             prediction = normalize(pred[:nv,0:1,:,:,sn]) if seg is None else \
                          pred[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,...]
             self.W.add_images('input/source', normalize(x[:nv,0:1,:,:,sn]), t, dataformats='NCHW')
