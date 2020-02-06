@@ -28,7 +28,7 @@ def jaccard(x:Tensor, y:Tensor):
 def dice(x:Tensor, y:Tensor):
     xm, ym = (x > 0), (y > 0)
     intersection = (xm & ym).sum().float()
-    cardinality = (xm.sum() + ym.sum()).float()
+    cardinality = xm.float().sum() + ym.float().sum()
     if cardinality == 0.: return 1.
     return 2 * intersection / cardinality
 
