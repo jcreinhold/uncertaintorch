@@ -355,8 +355,9 @@ class DiceLoss(_WeightedLoss):
 
 class FocalDiceLoss(BinaryMaskLossSegmentation):
     """ use focal and dice loss together """
-    def __init__(self, beta=25., use_mask=False, gamma=2., weight=None):
+    def __init__(self, alpha=(1.,1.), beta=25., use_mask=False, gamma=2., weight=None):
         super().__init__(beta, use_mask)
+        self.alpha = alpha
         self.weight = weight
         self.gamma = gamma
 
@@ -372,4 +373,4 @@ class FocalDiceLoss(BinaryMaskLossSegmentation):
         pred = prob_encode(pred)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
         dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
-        return focal_loss + dice_loss
+        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss
