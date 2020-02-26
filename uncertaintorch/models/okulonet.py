@@ -39,12 +39,12 @@ class OkuloNet(nn.Module):
         self._freeze()
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
         self.start = unet_block2d(ic, 8, 3, 5, 3)
-        self.up5 = unet_block2d(21+2048, 1024, 1024, 5, 3)
-        self.up4 = unet_block2d(1024+1024, 1024, 1024, 5, 3)
-        self.up3 = unet_block2d(1024+512, 512, 512, 5, 3)
-        self.up2 = unet_block2d(512+256, 256, 256, 5, 3)
-        self.up1 = unet_block2d(256+64, 64, 64, 5, 3)
-        self.end = unet_block2d(64+3, 32, 32, 5, 3)
+        self.up5 = unet_block2d(21+2048, 512, 512, 3, 3)
+        self.up4 = unet_block2d(512+1024, 256, 256, 3, 3)
+        self.up3 = unet_block2d(256+512, 128, 128, 3, 3)
+        self.up2 = unet_block2d(128+256, 64, 64, 3, 3)
+        self.up1 = unet_block2d(256+64, 32, 32, 3, 3)
+        self.end = unet_block2d(32+3, 32, 32, 3, 3)
         self.syn = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.unc = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.p = p
