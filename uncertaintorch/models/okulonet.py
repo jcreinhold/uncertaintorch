@@ -37,7 +37,6 @@ class OkuloNet(nn.Module):
         self.backbone = model.backbone
         self.head = model.classifier
         self._freeze()
-        del self.backbone.fc, self.backbone.avgpool
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
         self.start = unet_block2d(ic, 8, 3, 5, 3)
         self.up5 = unet_block2d(21+2048, 1024, 1024, 5, 3)
