@@ -37,9 +37,11 @@ class OkuloNet(nn.Module):
         self.backbone = model.backbone
         self.head = model.classifier
         self._freeze()
+        del self.backbone.fc, self.backbone.avgpool
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
         self.start = unet_block2d(ic, 8, 3, 5, 3)
-        self.up4 = unet_block2d(2048+1024, 1024, 1024, 5, 3)
+        self.up5 = unet_block2d(21+2048, 1024, 1024, 5, 3)
+        self.up4 = unet_block2d(1024+1024, 1024, 1024, 5, 3)
         self.up3 = unet_block2d(1024+512, 512, 512, 5, 3)
         self.up2 = unet_block2d(512+256, 256, 256, 5, 3)
         self.up1 = unet_block2d(256+64, 64, 64, 5, 3)
@@ -84,6 +86,9 @@ class OkuloNet(nn.Module):
         features = self.backbone(x)
         x = features["out"]
         x = self.head(x)
+        x = self.interpcat(x, features['out'])
+        x = self.up5(x)
+        x = self.dropout(x)
         x = self.interpcat(x, features['mid3'])
         x = self.up4(x)
         x = self.dropout(x)
