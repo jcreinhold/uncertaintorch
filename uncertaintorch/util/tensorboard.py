@@ -91,7 +91,7 @@ class ValidTB(TB):
                     alim = alim[:nv,:,:,:,sn]
                     sbim = sbim[:nv,:,:,:,sn]
             else:
-                source = normalize(x[:nv,0:1,...]), , pred[:nv,0:1,...]
+                source = normalize(x[:nv,0:1,...])
                 target = normalize(y[:nv,0:1,...]) if seg is None else y[:nv,0:1,...]
                 prediction = normalize(pred[:nv,0:1,...]) if seg is None else pred[:nv,0:1,...]
                 if unc is not None:
