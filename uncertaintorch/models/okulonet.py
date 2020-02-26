@@ -40,11 +40,12 @@ class OkuloNet(nn.Module):
         self.head = model.classifier
         self._freeze()
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
-        self.orig_conv = nn.Sequential(*conv(ic, 1, 7, 1))
-        self.up3 = unet_block(2048+1024, 1024, 1024, 5, 3)
-        self.up2 = unet_block(1024+256, 256, 256, 5, 3)
+        self.start = unet_block(ic, 8, 3, 5, 3)
+        self.up4 = unet_block(2048+1024, 1024, 1024, 5, 3)
+        self.up3 = unet_block(1024+512, 512, 512, 5, 3)
+        self.up2 = unet_block(512+256, 256, 256, 5, 3)
         self.up1 = unet_block(256+64, 64, 64, 5, 3)
-        self.end = unet_block(64+1, 32, 32, 5, 3)
+        self.end = unet_block(64+3, 32, 32, 5, 3)
         self.syn = nn.Sequential(*conv(32, 32, 3), nn.Conv3d(32, oc, 1))
         self.unc = nn.Sequential(*conv(32, 32, 3), nn.Conv3d(32, oc, 1))
         self.p = p
@@ -80,10 +81,14 @@ class OkuloNet(nn.Module):
     def interpcat(self,x,r): return self.cat(self.interp(x, r.shape[2:]), r)
 
     def forward(self, x):
-        orig = self.orig_conv(x)
+        x = self.start(x)
+        orig = x.clone()
         features = self.backbone(x)
         x = features["out"]
         x = self.head(x)
+        x = self.interpcat(x, features['mid3'])
+        x = self.up4(x)
+        x = self.dropout(x)
         x = self.interpcat(x, features['mid2'])
         x = self.up3(x)
         x = self.dropout(x)
@@ -104,7 +109,8 @@ def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True
         pretrained=pretrained_backbone,
         replace_stride_with_dilation=[False, True, True])
     return_layers = {'layer4': 'out',   # 2048 channels
-                     'layer3': 'mid2',  # 1024 channels
+                     'layer3': 'mid3',  # 1024 channels
+                     'layer2': 'mid2',  # 512 channels
                      'layer1': 'mid1',  # 256 channels
                      'relu': 'start'}   # 64 channels
     backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
