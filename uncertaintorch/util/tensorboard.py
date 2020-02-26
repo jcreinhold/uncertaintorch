@@ -79,19 +79,30 @@ class ValidTB(TB):
                 self.W.add_scalar('scibilic/valid',  sb, j)
         plot_img = i == 0 and (t % img_rate) == 0
         if plot_img:
-            sn = x.size(4) // 2  # slice number
-            # TODO: make the target and prediction images work with 2d
-            target = normalize(y[:nv,0:1,:,:,sn]) if seg is None else \
-                     y[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,:,:,sn]
-            prediction = normalize(pred[:nv,0:1,:,:,sn]) if seg is None else \
-                         pred[:nv,:,:,sn].unsqueeze(1) if pred.ndim == 4 else pred[:nv,0:1,:,:,sn]
-            self.W.add_images('input/source', normalize(x[:nv,0:1,:,:,sn]), t, dataformats='NCHW')
+            if y.ndim == 5:
+                sn = (x.size(4) // 2)  # slice number
+                source = normalize(x[:nv,0:1,:,:,sn])
+                target = normalize(y[:nv,0:1,:,:,sn]) if seg is None else \
+                         y[:nv,:,:,sn].unsqueeze(1) if y.ndim == 4 else y[:nv,0:1,:,:,sn]
+                prediction = normalize(pred[:nv,0:1,:,:,sn]) if seg is None else \
+                             pred[:nv,:,:,sn].unsqueeze(1) if pred.ndim == 4 else pred[:nv,0:1,:,:,sn]
+                if unc is not None:
+                    epim = epim[:nv,:,:,:,sn]
+                    alim = alim[:nv,:,:,:,sn]
+                    sbim = sbim[:nv,:,:,:,sn]
+            else:
+                source, target, prediction = x[:nv,0:1,...], y[:nv,0:1,...], pred[:nv,0:1,...]
+                if unc is not None:
+                    epim = epim[:nv,...]
+                    alim = alim[:nv,...]
+                    sbim = sbim[:nv,...]
+            self.W.add_images('input/source', source, t, dataformats='NCHW')
             self.W.add_images('input/target', target, t, dataformats='NCHW')
             self.W.add_images('output/prediction', prediction, t, dataformats='NCHW')
             if unc is not None:
-                self.W.add_images('output/epistemic', epim[:nv,:,:,:,sn], t, dataformats='NCHW')
-                self.W.add_images('output/aleatoric', alim[:nv,:,:,:,sn], t, dataformats='NCHW')
-                self.W.add_images('output/scibilic',  sbim[:nv,:,:,:,sn], t, dataformats='NCHW')
+                self.W.add_images('output/epistemic', epim, t, dataformats='NCHW')
+                self.W.add_images('output/aleatoric', alim, t, dataformats='NCHW')
+                self.W.add_images('output/scibilic',  sbim, t, dataformats='NCHW')
         plot_hist = i == 0 and (t % hist_rate) == 0
         if plot_hist:
             self.histogram_weights(model, t, 'weights')
