@@ -19,17 +19,15 @@ from torchvision.models.utils import load_state_dict_from_url
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.models.segmentation.deeplabv3 import DeepLabHead, DeepLabV3
 from torchvision.models.segmentation.fcn import FCNHead
+from torchvision.models import resnet
 
 from ..learn import *
 from .unet_tools import *
-from .resnet2d import *
 
 model_urls = {
     'deeplabv3_resnet50_coco': None,
     'deeplabv3_resnet101_coco': 'https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth',
 }
-
-RESNET= {'resnet18': resnet18, 'resnet34': resnet34,'resnet50': resnet50,'resnet101': resnet101}
 
 
 class OkuloNet(nn.Module):
@@ -105,7 +103,7 @@ class OkuloNet(nn.Module):
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):
-    backbone = RESNET[backbone_name](
+    backbone = resnet.__dict__[backbone_name](
         pretrained=pretrained_backbone,
         replace_stride_with_dilation=[False, True, True])
     return_layers = {'layer4': 'out',   # 2048 channels
