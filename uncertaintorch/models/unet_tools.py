@@ -10,7 +10,7 @@ Author: Jacob Reinhold (jacob.reinhold@jhu.edu)
 Created on: December 31, 2019
 """
 
-__all__ = ['conv','unet_block','unet_list','unet_up']
+__all__ = ['conv','conv2d','unet_block','unet_block2d','unet_list','unet_up']
 
 from functools import partial
 
@@ -23,6 +23,18 @@ from ..learn import *
 from ..util import *
 
 activation = partial(nn.ReLU, inplace=False)
+
+
+def conv2d(i,o,k=3,s=1):
+    pad = k//2 if isinstance(k,int) else tuple([ks//2 for p in zip(reversed(k),reversed(k)) for ks in p])
+    if isinstance(k,int): c = [] if  k < 3 else [nn.ReflectionPad2d(pad)]
+    if isinstance(k,tuple): c = [] if all([p == 0 for p in pad]) else [nn.ReflectionPad2d(pad)]
+    c.extend([nn.Conv2d(i,o,k,s,bias=False), nn.BatchNorm2d(o), activation()])
+    return c
+
+
+def unet_block2d(i,m,o,k1,k2):
+    return nn.Sequential(*conv2d(i,m,k1),*conv2d(m,o,k2))
 
 
 def conv(i,o,k=3,s=1):
