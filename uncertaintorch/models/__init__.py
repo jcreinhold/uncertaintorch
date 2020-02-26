@@ -7,3 +7,4 @@ from .uncertainunetv3 import *
 from .uncertainunetv4 import *
 from .deeplab2d import *
 from .deeplab3d import *
+from .okulonet import *

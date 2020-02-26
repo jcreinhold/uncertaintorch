@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-resnet
+resnet3d
 
 3d resnet model (backbone for deeplabv3)
 
@@ -10,7 +10,7 @@ Author: Jacob Reinhold (jacob.reinhold@jhu.edu)
 Created on: December 31, 2019
 """
 
-__all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101']
+__all__ = ['ResNet3d', 'resnet3d18', 'resnet3d34', 'resnet3d50', 'resnet3d101']
 
 import torch
 from torch import nn
@@ -76,12 +76,12 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class ResNet3d(nn.Module):
 
     def __init__(self, block, layers, zero_init_residual=False,
                  groups=1, width_per_group=BASE_WIDTH, replace_stride_with_dilation=None,
                  norm_layer=None, in_channels=1, dropout_rate=0., bayesian=False):
-        super(ResNet, self).__init__()
+        super(ResNet3d, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm3d
         self._norm_layer = norm_layer
@@ -174,18 +174,18 @@ class ResNet(nn.Module):
         return self._forward_impl(x)
 
 
-def resnet18(**kwargs):
-    return ResNet(Bottleneck, [2, 2, 2, 2], **kwargs)
+def resnet3d18(**kwargs):
+    return ResNet3d(Bottleneck, [2, 2, 2, 2], **kwargs)
 
 
-def resnet34(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+def resnet3d34(**kwargs):
+    return ResNet3d(Bottleneck, [3, 4, 6, 3], **kwargs)
 
 
-def resnet50(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+def resnet3d50(**kwargs):
+    return ResNet3d(Bottleneck, [3, 4, 6, 3], **kwargs)
 
 
-def resnet101(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
+def resnet3d101(**kwargs):
+    return ResNet3d(Bottleneck, [3, 4, 23, 3], **kwargs)
 

@@ -18,10 +18,10 @@ import torch.nn.functional as F
 
 from ..learn import *
 from .unet_tools import *
-from .resnet import *
-from .resnet import BASE_WIDTH, EXPANSION
+from .resnet3d import *
+from .resnet3d import BASE_WIDTH, EXPANSION
 
-RESNET= {'resnet18': resnet18, 'resnet34': resnet34,'resnet50': resnet50,'resnet101': resnet101}
+RESNET= {'resnet18': resnet3d18, 'resnet34': resnet3d34,'resnet50': resnet3d50,'resnet101': resnet3d101}
 
 
 class DeepLab3d(nn.Module):
