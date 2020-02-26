@@ -38,8 +38,9 @@ class OkuloNet(nn.Module):
         self.head = model.classifier
         self._freeze()
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
+        self.head[4] = nn.Sequential(*conv2d(256, 256, 3))  # change last layer to not be classifier
         self.start = unet_block2d(ic, 8, 3, 5, 3)
-        self.up5 = unet_block2d(21+2048, 512, 512, 3, 3)
+        self.up5 = unet_block2d(256+2048, 512, 512, 3, 3)
         self.up4 = unet_block2d(512+1024, 256, 256, 3, 3)
         self.up3 = unet_block2d(256+512, 128, 128, 3, 3)
         self.up2 = unet_block2d(128+256, 64, 64, 3, 3)
