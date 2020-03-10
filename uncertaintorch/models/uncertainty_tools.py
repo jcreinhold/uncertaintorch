@@ -21,14 +21,14 @@ from ..util import *
 
 
 class UncertainNet(nn.Module):
-    def __init__(self, p, segnet, laplacian, aleatoric=True, concat=True, beta=25.):
+    def __init__(self, p, segnet, laplacian, bayesian=True, concat=True, beta=25.):
         super().__init__()
         self.p = p
         self.segnet = segnet
         self.laplacian = laplacian
-        self.aleatoric = aleatoric
+        self.bayesian = bayesian
         self.concat = concat
-        if aleatoric:
+        if bayesian:
             self.criterion = LaplacianDiagLoss(beta) if laplacian else GaussianDiagLoss(beta)
         else:
             self.criterion = L1OnlyLoss(beta) if laplacian else MSEOnlyLoss(beta)
@@ -38,7 +38,7 @@ class UncertainNet(nn.Module):
         return self._fwd(x)
 
     def dropout(self,x):
-        use_dropout = self.aleatoric or self.training
+        use_dropout = self.bayesian or self.training
         return F.dropout3d(x, self.p, training=use_dropout, inplace=False)
 
     @staticmethod

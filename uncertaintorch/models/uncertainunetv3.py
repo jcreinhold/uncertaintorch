@@ -22,10 +22,10 @@ from .uncertainty_tools import *
 
 class UncertainUnetv3(UncertainNet):
     def __init__(self, s=32, ic=1, oc=1, p=0.15, segnet=True, 
-                 laplacian=True, aleatoric=True, concat=True, beta=25.):
-        super().__init__(p, segnet, laplacian, aleatoric, concat, beta)
+                 laplacian=True, bayesian=True, concat=True, beta=25.):
+        super().__init__(p, segnet, laplacian, bayesian, concat, beta)
         c = 2 if concat else 1
-        self.start_0, self.start_1 = unet_list(ic,s,s,3,3,1,(2,2,1))
+        self.start_0, self.start_1 = unet_list(ic,s,s,(7,7,3),(5,5,3),1,(2,2,1))
         self.down1_0, self.down1_1 = unet_list(s,s*2,s*2,(3,3,1),(3,3,1),1,(2,2,1))
         self.down2_0, self.down2_1 = unet_list(s*2,s*4,s*4,(3,3,1),(3,3,1),1,(2,2,1))
         self.bridge = nn.Sequential(*conv(s*4,s*4,(3,3,1)))

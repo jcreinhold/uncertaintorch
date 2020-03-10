@@ -22,8 +22,8 @@ from .uncertainty_tools import *
 
 class UncertainUnetv4(UncertainNet):
     def __init__(self, s=32, ic=1, oc=1, p=0.15, segnet=True, 
-                 laplacian=True, aleatoric=True, concat=True, beta=25.):
-        super().__init__(p, segnet, laplacian, aleatoric, concat, beta)
+                 laplacian=True, bayesian=True, concat=True, beta=25.):
+        super().__init__(p, segnet, laplacian, bayesian, concat, beta)
         c = 2 if concat else 1
         self.init = nn.Sequential(*conv(ic,s,3,1))
         self.start_0, self.start_1 = unet_list(s,s,s,(3,3,1),(3,3,1),1,1)
