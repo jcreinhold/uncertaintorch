@@ -39,7 +39,7 @@ class UncertainNet(nn.Module):
 
     def dropout(self,x):
         use_dropout = self.aleatoric or self.training
-        return F.dropout3d(x, self.p, training=use_dropout, inplace=True)
+        return F.dropout3d(x, self.p, training=use_dropout, inplace=False)
 
     @staticmethod
     def interp(x,r): return F.interpolate(x, size=r.shape[2:])

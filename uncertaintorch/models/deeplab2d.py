@@ -69,7 +69,7 @@ class DeepLab2d(nn.Module):
 
     def dropout(self, x):
         use_dropout = self.training if not self.bayesian else True
-        return F.dropout2d(x, p=self.p, training=use_dropout)
+        return F.dropout2d(x, p=self.p, training=use_dropout, inplace=False)
 
     @staticmethod
     def cat(x,r): return torch.cat((x, r), dim=1)
