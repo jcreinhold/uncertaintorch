@@ -25,6 +25,7 @@ class CBR(nn.Module):
     def __init__(self, s=32, ic=1, oc=1, p=0., beta=25., bayesian=False, laplacian=False):
         super().__init__()
         self.p = p
+        self.bayesian = bayesian
         self.conv1 = nn.Sequential(*conv(ic, s, 7))
         self.conv2 = nn.Sequential(*conv(s, s*2, 5))
         self.conv3 = nn.Sequential(*conv(s*2, s*4, 3))
