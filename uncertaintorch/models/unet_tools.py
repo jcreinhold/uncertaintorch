@@ -22,7 +22,7 @@ import torch.nn.functional as F
 from ..learn import *
 from ..util import *
 
-activation = partial(nn.ReLU, inplace=False)
+activation = partial(nn.ReLU, inplace=True)
 
 
 def conv2d(i,o,k=3,s=1):
