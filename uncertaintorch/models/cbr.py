@@ -26,14 +26,14 @@ class CBR(nn.Module):
         super().__init__()
         self.p = p
         self.bayesian = bayesian
-        self.conv1 = nn.Sequential(*conv(ic, s, 7))
-        self.conv2 = nn.Sequential(*conv(s, s*2, 5))
-        self.conv3 = nn.Sequential(*conv(s*2, s*4, 3))
-        self.conv4 = nn.Sequential(*conv(s*4, s*4, 3))
+        self.conv1 = nn.Sequential(*conv(ic, s, (7,7,3)))
+        self.conv2 = nn.Sequential(*conv(s, s*2, (5,5,3)))
+        self.conv3 = nn.Sequential(*conv(s*2, s*4, (3,3,1)))
+        self.conv4 = nn.Sequential(*conv(s*4, s*4, (3,3,1)))
         self.syn = nn.Sequential(*conv(s*4+s, s, 3),
-                                 nn.Conv3d(s, oc,1))
+                                 nn.Conv3d(s, oc, 1))
         self.unc = nn.Sequential(*conv(s*4+s, s, 3),
-                                 nn.Conv3d(s, oc,1))
+                                 nn.Conv3d(s, oc, 1))
         if bayesian:
             self.criterion = LaplacianDiagLoss(beta) if laplacian else GaussianDiagLoss(beta)
         else:
