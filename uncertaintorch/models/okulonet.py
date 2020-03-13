@@ -69,6 +69,10 @@ class OkuloNet(nn.Module):
             param.requires_grad = False
 
     def _freeze(self):
+        for param in self.backbone.conv1.parameters():
+            param.requires_grad = False
+        for param in self.backbone.bn1.parameters():
+            param.requires_grad = False
         for param in self.backbone.layer1.parameters():
             param.requires_grad = False
         for param in self.backbone.layer2.parameters():
