@@ -36,7 +36,6 @@ class OkuloNet(nn.Module):
         model = deeplabv3_resnet101(pretrained=True)
         self.backbone = model.backbone
         self.head = model.classifier
-        self._freeze()
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
         self.head[4] = nn.Sequential(*conv2d(256, 256, 3))  # change last layer to not be classifier
         self.start = unet_block2d(ic, 8, 3, 7, 5)
@@ -62,13 +61,13 @@ class OkuloNet(nn.Module):
             else:
                 self.criterion = L1OnlyLoss(beta) if laplacian else MSEOnlyLoss(beta)
 
-    def _freeze_full(self):
+    def freeze_full(self):
         for param in self.backbone.parameters():
             param.requires_grad = False
         for param in self.head.parameters():
             param.requires_grad = False
 
-    def _freeze(self):
+    def freeze(self):
         for param in self.backbone.conv1.parameters():
             param.requires_grad = False
         for param in self.backbone.bn1.parameters():
