@@ -375,3 +375,26 @@ class FocalDiceL2Loss(BinaryMaskLossSegmentation):
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
         dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
         return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
+
+
+class ExtendedBCEDiceL2Loss(BinaryMaskLossSegmentation):
+    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, n_samples=10):
+        super().__init__(beta, use_mask)
+        self.alpha = alpha
+        self.weight = weight
+        self.gamma = gamma
+        self.nsamp = n_samples
+
+    def loss_fn(self, out, y, reduction='mean'):
+        pred, sigma = out
+        dist = torch.distributions.Normal(pred, sigma)
+        x_hat = dist.rsample((self.nsamp,))
+        mc_prob = F.softmax(x_hat, dim=2).mean(dim=0)  # channel dim = 2 b/c samples
+        bce_loss = F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
+        mse_loss = F.mse_loss(sigmoid(pred), y, reduction=reduction)
+        average = reduction == 'mean'
+        if average: bce_loss = bce_loss.mean()
+        pred = prob_encode(pred)
+        y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
+        dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
+        return self.alpha[0] * bce_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss

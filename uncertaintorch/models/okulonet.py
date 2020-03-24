@@ -31,14 +31,16 @@ model_urls = {
 
 
 class OkuloNet(nn.Module):
-    def __init__(self, ic=1, oc=1, p=0., beta=25., bayesian=False, laplacian=True, segmentation=None):
+    def __init__(self, ic=1, oc=1, p=0., beta=25., bayesian=False, laplacian=True, segmentation=None,
+                 fc=8, pretrained=True):
         super().__init__()
-        model = deeplabv3_resnet101(pretrained=True)
+        model = deeplabv3_resnet101(pretrained=pretrained)
         self.backbone = model.backbone
+        if not pretrained: self.backbone.conv1 = nn.Conv2d(fc, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.head = model.classifier
         self.head[0].project[3] = nn.Dropout2d(p)  # change dropout to channel dropout
         self.head[4] = nn.Sequential(*conv2d(256, 256, 3))  # change last layer to not be classifier
-        self.start = unet_block2d(ic, 8, 3, 7, 5)
+        self.start = unet_block2d(ic, fc, 3 if pretrained else fc, 7, 5)
         self.up5 = unet_block2d(256+2048, 512, 512, 3, 3)
         self.up4 = unet_block2d(512+1024, 256, 256, 3, 3)
         self.up3 = unet_block2d(256+512, 128, 128, 3, 3)
