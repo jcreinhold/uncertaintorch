@@ -48,7 +48,7 @@ class OkuloNet(nn.Module):
         self.up3 = unet_block2d(256+512, 128, 128, 3, 3)
         self.up2 = unet_block2d(128+256, 64, 64, 3, 3)
         self.up1 = unet_block2d(64+64, 32, 32, 3, 3)
-        self.end = unet_block2d(32+3, 32, 32, 3, 3)
+        self.end = unet_block2d(32+sc, 32, 32, 3, 3)
         self.syn = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.unc = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.p = p
