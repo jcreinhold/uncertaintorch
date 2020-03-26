@@ -379,19 +379,18 @@ class FocalDiceL2Loss(BinaryMaskLossSegmentation):
 
 
 class ExtendedBCEDiceL2Loss(BinaryMaskLossSegmentation):
-    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, n_samples=10):
+    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, weight=None, n_samples=10):
         super().__init__(beta, use_mask)
         self.alpha = alpha
         self.weight = weight
-        self.gamma = gamma
         self.nsamp = n_samples
 
     def loss_fn(self, out, y, reduction='mean'):
         pred, sigma = out
         dist = torch.distributions.Normal(pred, F.softplus(sigma))
         x_hat = dist.rsample((self.nsamp,))
-        mc_prob = sigmoid(x_hat).mean(dim=0)
-        bce_loss = F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
+        mc_prob = sigmoid(x_hat.mean(dim=0))
+        bce_loss = F.binary_cross_entropy(mc_prob, y, weight=self.weight, reduction=reduction)
         mse_loss = F.mse_loss(mc_prob, y, reduction=reduction)
         average = reduction == 'mean'
         if average: bce_loss = bce_loss.mean()
