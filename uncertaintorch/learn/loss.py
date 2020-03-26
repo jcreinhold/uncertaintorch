@@ -389,12 +389,12 @@ class ExtendedBCEDiceL2Loss(BinaryMaskLossSegmentation):
         pred, sigma = out
         dist = torch.distributions.Normal(pred, sigma)
         x_hat = dist.rsample((self.nsamp,))
-        mc_prob = F.softmax(x_hat, dim=2).mean(dim=0)  # channel dim = 2 b/c samples
+        mc_prob = sigmoid(x_hat).mean(dim=0)
         bce_loss = F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
-        mse_loss = F.mse_loss(sigmoid(pred), y, reduction=reduction)
+        mse_loss = F.mse_loss(mc_prob, y, reduction=reduction)
         average = reduction == 'mean'
         if average: bce_loss = bce_loss.mean()
-        pred = prob_encode(pred)
+        pred = prob_encode(mc_prob)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
         dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
         return self.alpha[0] * bce_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
