@@ -123,7 +123,7 @@ class OkuloNet(nn.Module):
         yhat, s = self.syn(x), self.unc(x)
         return yhat, s
 
-    def binary_segmentation_uncertainty_predict(self, x, n_samp=50):
+    def binary_segmentation_uncertainty_predict(self, x, n_samp=50, eps=1e-6):
         logits, sigmas = [], []
         for _ in range(n_samp):
             logit, sigma = self.forward(x)
@@ -131,7 +131,7 @@ class OkuloNet(nn.Module):
             sigmas.append(sigma.detach().cpu())
         logit = torch.stack(logits).mean(dim=0)
         probit = torch.sigmoid(logit)
-        epistemic = -1 * (probit * probit.log() + ((1 - probit) * (1 - probit).log()))  # entropy
+        epistemic = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
         sigma = torch.stack(sigmas).mean(dim=0)
         aleatoric = F.softplus(sigma)
         return (logit, sigma, epistemic, aleatoric)
@@ -142,7 +142,7 @@ class OkuloNet(nn.Module):
         self.eval()
         with torch.no_grad():
             y = y.detach().cpu()
-            logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp)
+            logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
             if self.criterion.weight is not None:
                 device = self.criterion.weight.device
                 self.criterion.weight = self.criterion.weight.cpu()
