@@ -159,7 +159,7 @@ class ExtendedCrossEntropy(MaskLossSegmentation):
 
     def loss_fn(self, out, y, reduction='mean'):
         logits, sigma = out
-        dist = torch.distributions.Normal(logits, sigma)
+        dist = torch.distributions.Normal(logits, F.softplus(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_prob = F.softmax(x_hat, dim=2).mean(dim=0)  # channel dim = 2 b/c samples
         return F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
@@ -387,7 +387,7 @@ class ExtendedBCEDiceL2Loss(BinaryMaskLossSegmentation):
 
     def loss_fn(self, out, y, reduction='mean'):
         pred, sigma = out
-        dist = torch.distributions.Normal(pred, sigma)
+        dist = torch.distributions.Normal(pred, F.softplus(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_prob = sigmoid(x_hat).mean(dim=0)
         bce_loss = F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)

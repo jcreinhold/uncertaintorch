@@ -22,6 +22,7 @@ from torchvision.models.segmentation.fcn import FCNHead
 from torchvision.models import resnet
 
 from ..learn import *
+from ..util import *
 from .unet_tools import *
 
 model_urls = {
@@ -51,8 +52,6 @@ class OkuloNet(nn.Module):
         self.end = unet_block2d(32+sc, 32, 32, 3, 3)
         self.syn = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.unc = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
-        self.p = p
-        self.bayesian = bayesian
         self.segmentation = segmentation
         if bayesian:
             if segmentation is not None:
@@ -121,6 +120,36 @@ class OkuloNet(nn.Module):
         x = self.end(x)
         yhat, s = self.syn(x), self.unc(x)
         return yhat, s
+
+    def binary_segmentation_uncertainty_predict(self, x, n_samp=50):
+        logits, sigmas = [], []
+        for _ in range(n_samp):
+            logit, sigma = self.forward(x)
+            logits.append(logit.detach().cpu())
+            sigmas.append(sigma.detach().cpu())
+        logit = torch.stack(logits).mean(dim=0)
+        probit = torch.sigmoid(logit)
+        epistemic = -1 * (probit * probit.log() + ((1 - probit) * (1 - probit).log()))  # entropy
+        sigma = torch.stack(sigmas).mean(dim=0)
+        aleatoric = F.softplus(sigma)
+        return (logit, sigma, epistemic, aleatoric)
+
+    def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
+        """ get segmentation uncertainties and other metrics during training for analysis """
+        state = self.training
+        self.eval()
+        with torch.no_grad():
+            y = y.detach().cpu()
+            logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp)
+            criterion = self.criterion.detach().cpu()
+            loss = criterion((logit, sigma), y)
+            sb = ep / (al + eps)
+            eu, au = ep.mean(), al.mean()
+            su = sb.mean()
+            pred = (logit >= 0)
+            ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
+        self.train(state)
+        return loss, pred, (ep, al, sb), (eu, au, su), (ds, js)
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):
