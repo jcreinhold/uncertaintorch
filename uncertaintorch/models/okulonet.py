@@ -143,15 +143,18 @@ class OkuloNet(nn.Module):
         with torch.no_grad():
             y = y.detach().cpu()
             logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp)
-            criterion = self.criterion.cpu()
-            if criterion.weight is not None: criterion.weight = criterion.weight.cpu()
-            loss = criterion((logit, sigma), y)
+            if self.criterion.weight is not None:
+                device = self.criterion.weight.device
+                self.criterion.weight.cpu()
+            loss = self.criterion((logit, sigma), y)
             sb = ep / (al + eps)
             eu, au = ep.mean(), al.mean()
             su = sb.mean()
             pred = (logit >= 0)
             ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
+        if self.criterion.weight is not None:
+            self.criterion.weight.to(device)
         return loss, pred, (ep, al, sb), (eu, au, su), (ds, js)
 
 
