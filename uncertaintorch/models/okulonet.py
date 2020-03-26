@@ -144,6 +144,7 @@ class OkuloNet(nn.Module):
             y = y.detach().cpu()
             logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp)
             criterion = self.criterion.cpu()
+            if criterion.weight is not None: criterion.weight = criterion.weight.cpu()
             loss = criterion((logit, sigma), y)
             sb = ep / (al + eps)
             eu, au = ep.mean(), al.mean()
