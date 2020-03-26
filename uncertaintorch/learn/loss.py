@@ -19,7 +19,8 @@ __all__ = ['GaussianDiagLoss',
            'ExtendedCrossEntropy',
            'DiceLoss',
            'SquaredDiceLoss',
-           'FocalDiceL2Loss']
+           'FocalDiceL2Loss',
+           'ExtendedBCEDiceL2Loss']
 
 import numpy as np
 import torch
