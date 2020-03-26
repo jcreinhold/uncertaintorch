@@ -145,7 +145,7 @@ class OkuloNet(nn.Module):
             logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp)
             if self.criterion.weight is not None:
                 device = self.criterion.weight.device
-                self.criterion.weight.cpu()
+                self.criterion.weight = self.criterion.weight.cpu()
             loss = self.criterion((logit, sigma), y)
             sb = ep / (al + eps)
             eu, au = ep.mean(), al.mean()
@@ -154,7 +154,7 @@ class OkuloNet(nn.Module):
             ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
         if self.criterion.weight is not None:
-            self.criterion.weight.to(device)
+            self.criterion.weight = self.criterion.weight.to(device)
         return loss, pred, (ep, al, sb), (eu, au, su), (ds, js)
 
 
