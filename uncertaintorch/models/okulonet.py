@@ -52,6 +52,8 @@ class OkuloNet(nn.Module):
         self.end = unet_block2d(32+sc, 32, 32, 3, 3)
         self.syn = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
         self.unc = nn.Sequential(*conv2d(32, 32, 3), nn.Conv2d(32, oc, 1))
+        self.p = p
+        self.bayesian = bayesian
         self.segmentation = segmentation
         if bayesian:
             if segmentation is not None:
