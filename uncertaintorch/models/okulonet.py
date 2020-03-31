@@ -129,12 +129,13 @@ class OkuloNet(nn.Module):
             logit, sigma = self.forward(x)
             logits.append(logit.detach().cpu())
             sigmas.append(sigma.detach().cpu())
-        logit = torch.stack(logits).mean(dim=0)
-        probit = torch.sigmoid(logit)
-        epistemic = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
+        logits = torch.stack(logits)
+        epistemic = logits.var(dim=0, unbiased=True)
+        probit = torch.sigmoid(logits.mean(dim=0))
+        entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
         sigma = torch.stack(sigmas).mean(dim=0)
         aleatoric = F.softplus(sigma)
-        return (logit, sigma, epistemic, aleatoric)
+        return (logit, sigma, epistemic, entropy, aleatoric)
 
     def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
         """ get segmentation uncertainties and other metrics during training for analysis """
@@ -142,20 +143,21 @@ class OkuloNet(nn.Module):
         self.eval()
         with torch.no_grad():
             y = y.detach().cpu()
-            logit, sigma, ep, al = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
+            logit, sigma, ep, en, al = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
             if self.criterion.weight is not None:
                 device = self.criterion.weight.device
                 self.criterion.weight = self.criterion.weight.cpu()
             loss = self.criterion((logit, sigma), y)
             sb = ep / (al + eps)
             eu, au = ep.mean(), al.mean()
+            nu = en.mean()
             su = sb.mean()
             pred = (logit >= 0)
             ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
         if self.criterion.weight is not None:
             self.criterion.weight = self.criterion.weight.to(device)
-        return loss, pred, (ep, al, sb), (eu, au, su), (ds, js)
+        return loss, pred, (ep, en, al, sb), (eu, nu, au, su), (ds, js)
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):
