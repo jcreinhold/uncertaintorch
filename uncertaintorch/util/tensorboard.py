@@ -55,14 +55,15 @@ class TrainTB(TB):
             if unc is not None:
                 if len(unc) == 3:
                     ep, al, sb = unc
-                    en = None
+                    en, ep2 = None, None
                 else:
-                    ep, en, al, sb = unc
+                    ep, en, al, ep2, sb = unc
                 self.W.add_scalar('epistemic/train', ep, j)
                 self.W.add_scalar('aleatoric/train', al, j)
                 self.W.add_scalar('scibilic/train',  sb, j)
                 if en is not None:
                     self.W.add_scalar('entropy/train', en, j)
+                    self.W.add_scalar('epistemic2/train', ep2, j)
 
 
 class ValidTB(TB):
@@ -82,13 +83,15 @@ class ValidTB(TB):
                 if len(unc) == 6:
                     epim, alim, sbim, ep, al, sb = unc
                     enim, en = None, None
+                    ep2im, ep2 = None, None
                 else:
-                    epim, enim, alim, sbim, ep, en, al, sb = unc
+                    epim, enim, alim, ep2im, sbim, ep, en, al, ep2, sb = unc
                 self.W.add_scalar('epistemic/valid', ep, j)
                 self.W.add_scalar('aleatoric/valid', al, j)
                 self.W.add_scalar('scibilic/valid',  sb, j)
-                if en is not None:
+                if en is not None and ep2 is not None:
                     self.W.add_scalar('entropy/valid', en, j)
+                    self.W.add_scalar('epistemic2/valid', ep2, j)
         plot_img = i == 0 and (t % img_rate) == 0
         if plot_img:
             if y.ndim == 5:
@@ -102,8 +105,9 @@ class ValidTB(TB):
                     epim = epim[:nv,:,:,:,sn]
                     alim = alim[:nv,:,:,:,sn]
                     sbim = sbim[:nv,:,:,:,sn]
-                    if enim is not None:
+                    if enim is not None and ep2im is not None:
                         enim = enim[:nv,:,:,:,sn]
+                        ep2im = ep2im[:nv,:,:,:,sn]
             else:
                 source = normalize(x[:nv,0:1,...])
                 target = normalize(y[:nv,0:1,...]) if seg is None else y[:nv,0:1,...]
@@ -114,6 +118,7 @@ class ValidTB(TB):
                     sbim = sbim[:nv,...]
                     if enim is not None:
                         enim = enim[:nv,...]
+                        ep2im = ep2im[:nv, ...]
             self.W.add_images('input/source', source, t, dataformats='NCHW')
             self.W.add_images('input/target', target, t, dataformats='NCHW')
             self.W.add_images('output/prediction', prediction, t, dataformats='NCHW')
@@ -123,6 +128,7 @@ class ValidTB(TB):
                 self.W.add_images('output/scibilic',  sbim, t, dataformats='NCHW')
                 if enim is not None:
                     self.W.add_images('output/entropy', enim, t, dataformats='NCHW')
+                    self.W.add_images('output/epistemic2', ep2im, t, dataformats='NCHW')
         plot_hist = i == 0 and (t % hist_rate) == 0
         if plot_hist:
             self.histogram_weights(model, t, 'weights')

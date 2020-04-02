@@ -135,9 +135,11 @@ class OkuloNet(nn.Module):
         epistemic = probits.var(dim=0, unbiased=True)
         probit = probits.mean(dim=0)
         entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
-        sigma = torch.stack(sigmas).mean(dim=0)
+        sigmas = torch.stack(sigmas)
+        sigma = sigmas.mean(dim=0)
         aleatoric = F.softplus(sigma)
-        return (logit, sigma, epistemic, entropy, aleatoric)
+        epistemic2 = F.softplus(sigmas).var(dim=0, unbiased=True)
+        return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
 
     def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
         """ get segmentation uncertainties and other metrics during training for analysis """
@@ -145,7 +147,7 @@ class OkuloNet(nn.Module):
         self.eval()
         with torch.no_grad():
             y = y.detach().cpu()
-            logit, sigma, ep, en, al = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
+            logit, sigma, ep, en, al, ep2 = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
             if self.criterion.weight is not None:
                 device = self.criterion.weight.device
                 self.criterion.weight = self.criterion.weight.cpu()
@@ -154,12 +156,13 @@ class OkuloNet(nn.Module):
             eu, au = ep.mean(), al.mean()
             nu = en.mean()
             su = sb.mean()
+            eu2 = ep2.mean()
             pred = (logit >= 0)
             ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
         if self.criterion.weight is not None:
             self.criterion.weight = self.criterion.weight.to(device)
-        return loss, pred, (ep, en, al, sb), (eu, nu, au, su), (ds, js)
+        return loss, pred, (ep, en, al, ep2, sb), (eu, nu, au, eu2, su), (ds, js)
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):
