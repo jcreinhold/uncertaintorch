@@ -137,7 +137,7 @@ class OkuloNet(nn.Module):
         entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
         sigmas = torch.stack(sigmas)
         sigma = sigmas.mean(dim=0)
-        aleatoric = F.softplus(sigma)
+        aleatoric = F.softplus(sigmas).mean(dim=0)
         epistemic2 = F.softplus(sigmas).var(dim=0, unbiased=True)
         return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
 
