@@ -374,7 +374,7 @@ class FocalDiceL2Loss(BinaryMaskLossSegmentation):
         if average: focal_loss = focal_loss.mean()
         pred = prob_encode(pred)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-        dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
+        dice_loss = calc_dice_loss(pred, y, average=average)
         return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
 
 
@@ -389,12 +389,12 @@ class ExtendedBCEDiceL2Loss(BinaryMaskLossSegmentation):
         pred, sigma = out
         dist = torch.distributions.Normal(pred, F.softplus(sigma))
         x_hat = dist.rsample((self.nsamp,))
-        mc_prob = sigmoid(x_hat.mean(dim=0))
-        bce_loss = F.binary_cross_entropy(mc_prob, y, weight=self.weight, reduction=reduction)
-        mse_loss = F.mse_loss(mc_prob, y, reduction=reduction)
+        mc_logs = x_hat.mean(dim=0)
+        bce_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
+        mse_loss = F.mse_loss(sigmoid(mc_logs), y, reduction=reduction)
         average = reduction == 'mean'
         if average: bce_loss = bce_loss.mean()
-        pred = prob_encode(mc_prob)
+        pred = prob_encode(mc_logs)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-        dice_loss = calc_dice_loss(pred, y, weight=self.weight, average=average)
+        dice_loss = calc_dice_loss(pred, y, average=average)
         return self.alpha[0] * bce_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
