@@ -19,8 +19,8 @@ __all__ = ['GaussianDiagLoss',
            'ExtendedCrossEntropy',
            'DiceLoss',
            'SquaredDiceLoss',
-           'FocalDiceL2Loss',
-           'ExtendedFocalDiceL2Loss']
+           'MonsterLoss',
+           'ExtendedMonsterLoss']
 
 import numpy as np
 import torch
@@ -354,8 +354,8 @@ class DiceLoss(_WeightedLoss):
                               average=self.average)
 
 
-class FocalDiceL2Loss(BinaryMaskLossSegmentation):
-    """ use focal, dice, and l2 loss together """
+class MonsterLoss(BinaryMaskLossSegmentation):
+    """ use focal, dice, and l1 loss together """
     def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None):
         super().__init__(beta, use_mask)
         self.alpha = alpha
@@ -369,16 +369,16 @@ class FocalDiceL2Loss(BinaryMaskLossSegmentation):
         focal_loss = -((1 - pt).pow(self.gamma)) * logpt
         if self.weight is not None:
             focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
-        mse_loss = F.mse_loss(sigmoid(pred), y, reduction=reduction)
+        l1_loss = F.l1_loss(sigmoid(pred), y, reduction=reduction)
         average = reduction == 'mean'
         if average: focal_loss = focal_loss.mean()
         pred = prob_encode(pred)
         y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
         dice_loss = calc_dice_loss(pred, y, average=average)
-        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
+        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss
 
 
-class ExtendedFocalDiceL2Loss(BinaryMaskLossSegmentation):
+class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
     def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, n_samples=10):
         super().__init__(beta, use_mask)
         self.alpha = alpha
@@ -405,13 +405,14 @@ class ExtendedFocalDiceL2Loss(BinaryMaskLossSegmentation):
         else:
             focal_loss = 0.
         if self.alpha[1] > 0:
-            mse_loss = F.mse_loss(sigmoid(mc_logs), y, reduction=reduction)
+            l1_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(pred, y, reduction='none')) + sigma
+            if average: l1_loss = torch.mean(l1_loss)
         else:
-            mse_loss = 0.
+            l1_loss = 0.
         if self.alpha[2] > 0:
             pred = prob_encode(mc_logs)
             y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
             dice_loss = calc_dice_loss(pred, y, average=average)
         else:
             dice_loss = 0.
-        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss
+        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss

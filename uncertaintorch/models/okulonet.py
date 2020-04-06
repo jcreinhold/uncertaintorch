@@ -57,12 +57,12 @@ class OkuloNet(nn.Module):
         self.segmentation = segmentation
         if bayesian:
             if segmentation is not None:
-                self.criterion = ExtendedFocalDiceL2Loss(beta, **segmentation)
+                self.criterion = ExtendedMonsterLoss(beta, **segmentation)
             else:
                 self.criterion = LaplacianDiagLoss(beta) if laplacian else GaussianDiagLoss(beta)
         else:
             if segmentation is not None:
-                self.criterion = FocalDiceL2Loss(beta, **segmentation)
+                self.criterion = MonsterLoss(beta, **segmentation)
             else:
                 self.criterion = L1OnlyLoss(beta) if laplacian else MSEOnlyLoss(beta)
 
