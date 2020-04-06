@@ -122,13 +122,15 @@ class BinaryFocalLoss(BinaryMaskLossSegmentation):
         self.gamma = gamma
 
     def loss_fn(self, out, y, reduction='mean'):
-        """ Taken from: https://github.com/catalyst-team/catalyst/ """
+        """ Taken from: https://github.com/catalyst-team/catalyst/, https://github.com/facebookresearch/fvcore """
         pred, _ = out
-        logpt = -F.binary_cross_entropy_with_logits(pred, y, reduction='none')
-        pt = torch.exp(logpt)
-        loss = -((1 - pt).pow(self.gamma)) * logpt
+        p = torch.sigmoid(pred)
+        ce_loss = F.binary_cross_entropy_with_logits(pred, y, reduction="none")
+        p_t = p * y + (1 - p) * (1 - y)
+        loss = ce_loss * ((1 - p_t) ** self.gamma)
         if self.weight is not None:
-            loss = loss * (self.weight * y + (1 - self.weight) * (1 - y))
+            weight_t = self.weight * y + (1 - self.weight) * (1 - y)
+            loss = weight_t * loss
         if reduction == "mean":
             loss = loss.mean()
         if reduction == "sum":
@@ -159,8 +161,9 @@ class ExtendedCrossEntropy(MaskLossSegmentation):
         self.nsamp = n_samples
 
     def loss_fn(self, out, y, reduction='mean'):
+        """ https://github.com/alainjungo/reliability-challenges-uncertainty """
         logits, sigma = out
-        dist = torch.distributions.Normal(logits, F.softplus(sigma))
+        dist = torch.distributions.Normal(logits, torch.exp(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_prob = F.softmax(x_hat, dim=2).mean(dim=0)  # channel dim = 2 b/c samples
         return F.nll_loss(mc_prob.log(), y, weight=self.weight, reduction=reduction)
@@ -363,18 +366,27 @@ class MonsterLoss(BinaryMaskLossSegmentation):
         self.gamma = gamma
 
     def loss_fn(self, out, y, reduction='mean'):
-        pred, _ = out
-        logpt = -F.binary_cross_entropy_with_logits(pred, y, reduction='none')
-        pt = torch.exp(logpt)
-        focal_loss = -((1 - pt).pow(self.gamma)) * logpt
-        if self.weight is not None:
-            focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
-        l1_loss = F.l1_loss(sigmoid(pred), y, reduction=reduction)
         average = reduction == 'mean'
-        if average: focal_loss = focal_loss.mean()
-        pred = prob_encode(pred)
-        y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-        dice_loss = calc_dice_loss(pred, y, average=average)
+        pred, _ = out
+        p = torch.sigmoid(pred)
+        if self.alpha[0] > 0.:
+            ce_loss = F.binary_cross_entropy_with_logits(pred, y, reduction="none")
+            p_t = p * y + (1 - p) * (1 - y)
+            focal_loss = ce_loss * ((1 - p_t) ** self.gamma)
+            if self.weight is not None:
+                weight_t = self.weight * y + (1 - self.weight) * (1 - y)
+                focal_loss = weight_t * focal_loss
+            if average: focal_loss = focal_loss.mean()
+        else:
+            focal_loss = 0.
+        if self.alpha[1] > 0.:
+            l1_loss = F.l1_loss(p, y, reduction=reduction)
+        else:
+            l1_loss = 0.
+        if self.alpha[2] > 0.:
+            dice_loss = calc_dice_loss(p, y, average=average)
+        else:
+            dice_loss = 0.
         return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss
 
 
@@ -389,30 +401,30 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
     def loss_fn(self, out, y, reduction='mean'):
         average = reduction == 'mean'
         pred, sigma = out
-        dist = torch.distributions.Normal(pred, F.softplus(sigma))
+        dist = torch.distributions.Normal(pred, torch.exp(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_logs = x_hat.mean(dim=0)
-        if self.alpha[0] > 0:
+        p = torch.sigmoid(mc_logs)
+        if self.alpha[0] > 0.:
             if self.gamma == 1.:
                 focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
             else:
-                logpt = -F.binary_cross_entropy_with_logits(mc_logs, y, reduction='none')
-                pt = torch.exp(logpt)
-                focal_loss = -((1 - pt).pow(self.gamma)) * logpt
+                ce_loss = F.binary_cross_entropy_with_logits(mc_logs, y, reduction="none")
+                p_t = p * y + (1 - p) * (1 - y)
+                focal_loss = ce_loss * ((1 - p_t) ** self.gamma)
                 if self.weight is not None:
-                    focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
+                    weight_t = self.weight * y + (1 - self.weight) * (1 - y)
+                    focal_loss = weight_t * focal_loss
             if average: focal_loss = focal_loss.mean()
         else:
             focal_loss = 0.
-        if self.alpha[1] > 0:
-            l1_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(pred, y, reduction='none')) + sigma
+        if self.alpha[1] > 0.:
+            l1_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(torch.sigmoid(pred), y, reduction='none')) + sigma
             if average: l1_loss = torch.mean(l1_loss)
         else:
             l1_loss = 0.
-        if self.alpha[2] > 0:
-            pred = prob_encode(mc_logs)
-            y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-            dice_loss = calc_dice_loss(pred, y, average=average)
+        if self.alpha[2] > 0.:
+            dice_loss = calc_dice_loss(p, y, average=average)
         else:
             dice_loss = 0.
         return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss
