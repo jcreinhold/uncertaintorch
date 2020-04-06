@@ -387,22 +387,31 @@ class ExtendedFocalDiceL2Loss(BinaryMaskLossSegmentation):
         self.nsamp = n_samples
 
     def loss_fn(self, out, y, reduction='mean'):
+        average = reduction == 'mean'
         pred, sigma = out
         dist = torch.distributions.Normal(pred, F.softplus(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_logs = x_hat.mean(dim=0)
-        if self.gamma == 1.:
-            focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
+        if self.alpha[0] > 0:
+            if self.gamma == 1.:
+                focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
+            else:
+                logpt = -F.binary_cross_entropy_with_logits(mc_logs, y, reduction='none')
+                pt = torch.exp(logpt)
+                focal_loss = -((1 - pt).pow(self.gamma)) * logpt
+                if self.weight is not None:
+                    focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
+            if average: focal_loss = focal_loss.mean()
         else:
-            logpt = -F.binary_cross_entropy_with_logits(mc_logs, y, reduction='none')
-            pt = torch.exp(logpt)
-            focal_loss = -((1 - pt).pow(self.gamma)) * logpt
-            if self.weight is not None:
-                focal_loss = focal_loss * (self.weight * y + (1 - self.weight) * (1 - y))
-        mse_loss = F.mse_loss(sigmoid(mc_logs), y, reduction=reduction)
-        average = reduction == 'mean'
-        if average: focal_loss = focal_loss.mean()
-        pred = prob_encode(mc_logs)
-        y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
-        dice_loss = calc_dice_loss(pred, y, average=average)
+            focal_loss = 0.
+        if self.alpha[1] > 0:
+            mse_loss = F.mse_loss(sigmoid(mc_logs), y, reduction=reduction)
+        else:
+            mse_loss = 0.
+        if self.alpha[2] > 0:
+            pred = prob_encode(mc_logs)
+            y = one_hot(y, pred.shape) if pred.shape[1] > 2 else y.float()
+            dice_loss = calc_dice_loss(pred, y, average=average)
+        else:
+            dice_loss = 0.
         return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * mse_loss

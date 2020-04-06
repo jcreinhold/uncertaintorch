@@ -57,12 +57,12 @@ class OkuloNet(nn.Module):
         self.segmentation = segmentation
         if bayesian:
             if segmentation is not None:
-                self.criterion = ExtendedCrossEntropy(beta, **segmentation)
+                self.criterion = ExtendedFocalDiceL2Loss(beta, **segmentation)
             else:
                 self.criterion = LaplacianDiagLoss(beta) if laplacian else GaussianDiagLoss(beta)
         else:
             if segmentation is not None:
-                self.criterion = BinaryFocalLoss(beta, **segmentation)
+                self.criterion = FocalDiceL2Loss(beta, **segmentation)
             else:
                 self.criterion = L1OnlyLoss(beta) if laplacian else MSEOnlyLoss(beta)
 
