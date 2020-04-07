@@ -397,10 +397,12 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
         self.weight = weight
         self.gamma = gamma
         self.nsamp = n_samples
+        self.mlv = -13.816  # min log variance = ~log(1e-6)
 
     def loss_fn(self, out, y, reduction='mean'):
         average = reduction == 'mean'
         pred, sigma = out
+        sigma = torch.clamp_min(sigma, self.mlv)
         dist = torch.distributions.Normal(pred, torch.exp(sigma))
         x_hat = dist.rsample((self.nsamp,))
         mc_logs = x_hat.mean(dim=0)

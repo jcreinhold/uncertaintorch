@@ -135,10 +135,11 @@ class OkuloNet(nn.Module):
         epistemic = probits.var(dim=0, unbiased=True)
         probit = probits.mean(dim=0)
         entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
-        sigmas = torch.stack(sigmas)
+        sigmas = torch.clamp_min(torch.stack(sigmas), -13.816)  # ~log(1e-6)
         sigma = sigmas.mean(dim=0)
-        aleatoric = F.softplus(sigmas).mean(dim=0)
-        epistemic2 = F.softplus(sigmas).var(dim=0, unbiased=True)
+        sigmas = torch.exp(sigmas)
+        aleatoric = sigmas.mean(dim=0)
+        epistemic2 = sigmas.var(dim=0, unbiased=True)
         return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
 
     def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
