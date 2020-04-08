@@ -359,16 +359,18 @@ class DiceLoss(_WeightedLoss):
 
 class MonsterLoss(BinaryMaskLossSegmentation):
     """ use focal, dice, and l1 loss together """
-    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None):
+    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, use_l2=True):
         super().__init__(beta, use_mask)
         self.alpha = alpha
         self.weight = weight
         self.gamma = gamma
+        self.use_l2 = use_l2
 
     def loss_fn(self, out, y, reduction='mean'):
         average = reduction == 'mean'
         pred, _ = out
         p = torch.sigmoid(pred)
+
         if self.alpha[0] > 0.:
             ce_loss = F.binary_cross_entropy_with_logits(pred, y, reduction="none")
             p_t = p * y + (1 - p) * (1 - y)
@@ -379,25 +381,31 @@ class MonsterLoss(BinaryMaskLossSegmentation):
             if average: focal_loss = focal_loss.mean()
         else:
             focal_loss = 0.
+
         if self.alpha[1] > 0.:
-            l1_loss = F.l1_loss(p, y, reduction=reduction)
-        else:
-            l1_loss = 0.
-        if self.alpha[2] > 0.:
             dice_loss = calc_dice_loss(p, y, average=average)
         else:
             dice_loss = 0.
-        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss
+
+        if self.alpha[2] > 0.:
+            reg_loss = F.mse_loss(p, y, reduction='none') if self.use_l2 else F.l1_loss(p, y, reduction='none')
+        else:
+            reg_loss = 0.
+
+        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * reg_loss
 
 
 class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
-    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, n_samples=10):
+    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, n_samples=10,
+                 use_l2=True, extended_regression=False):
         super().__init__(beta, use_mask)
         self.alpha = alpha
         self.weight = weight
         self.gamma = gamma
         self.nsamp = n_samples
         self.mlv = -13.816  # min log variance = ~log(1e-6)
+        self.use_l2 = use_l2
+        self.extended_regression = extended_regression
 
     def loss_fn(self, out, y, reduction='mean'):
         average = reduction == 'mean'
@@ -407,6 +415,7 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
         x_hat = dist.rsample((self.nsamp,))
         mc_logs = x_hat.mean(dim=0)
         p = torch.sigmoid(mc_logs)
+
         if self.alpha[0] > 0.:
             if self.gamma == 1.:
                 focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
@@ -420,13 +429,22 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
             if average: focal_loss = focal_loss.mean()
         else:
             focal_loss = 0.
+
         if self.alpha[1] > 0.:
-            l1_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(torch.sigmoid(pred), y, reduction='none')) + sigma
-            if average: l1_loss = torch.mean(l1_loss)
-        else:
-            l1_loss = 0.
-        if self.alpha[2] > 0.:
             dice_loss = calc_dice_loss(p, y, average=average)
         else:
             dice_loss = 0.
-        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * l1_loss
+
+        if self.alpha[2] > 0.:
+            if self.extended_regression:
+                if self.use_l2:
+                    reg_loss = 0.5 * (torch.exp(-sigma) * F.mse_loss(sigmoid(pred), y, reduction='none') + sigma)
+                else:
+                    reg_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(sigmoid(pred), y, reduction='none')) + sigma
+            else:
+                reg_loss = F.mse_loss(p, y, reduction='none') if self.use_l2 else F.l1_loss(p, y, reduction='none')
+            if average: reg_loss = torch.mean(reg_loss)
+        else:
+            reg_loss = 0.
+
+        return self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * reg_loss
