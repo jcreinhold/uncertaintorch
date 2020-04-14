@@ -388,7 +388,8 @@ class MonsterLoss(BinaryMaskLossSegmentation):
             dice_loss = 0.
 
         if self.alpha[2] > 0.:
-            reg_loss = F.mse_loss(p, y, reduction='none') if self.use_l2 else F.l1_loss(p, y, reduction='none')
+            reg_loss = F.mse_loss(p, y, reduction=reduction) if self.use_l2 else \
+                       F.l1_loss(p, y, reduction=reduction)
         else:
             reg_loss = 0.
 
