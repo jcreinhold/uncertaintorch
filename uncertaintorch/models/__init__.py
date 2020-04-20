@@ -9,3 +9,4 @@ from .deeplab2d import *
 from .deeplab3d import *
 from .okulonet import *
 from .cbr import *
+from .tiramisu import *
