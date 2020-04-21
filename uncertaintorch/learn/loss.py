@@ -376,7 +376,7 @@ class MonsterLoss(BinaryMaskLossSegmentation):
                 focal_loss = F.binary_cross_entropy_with_logits(pred, y, pos_weight=self.weight, reduction=reduction)
             else:
                 ce_loss = F.binary_cross_entropy_with_logits(pred, y, reduction="none")
-                p = (pred_t + 1) / 2
+                p = (pred_t + 1.) / 2.
                 p_t = p * y + (1 - p) * (1 - y)
                 focal_loss = ce_loss * ((1 - p_t) ** self.gamma)
                 if self.weight is not None:
@@ -387,13 +387,13 @@ class MonsterLoss(BinaryMaskLossSegmentation):
             focal_loss = 0.
 
         if self.alpha[1] > 0.:
-            p = (pred_t + 1) / 2
+            p = (pred_t + 1.) / 2.
             dice_loss = calc_dice_loss(p, y, average=average)
         else:
             dice_loss = 0.
 
         if self.alpha[2] > 0.:
-            y = (y * 2) - 1
+            y = (y * 2.) - 1.
             reg_loss = F.mse_loss(pred_t, y, reduction=reduction) if self.use_l2 else \
                        F.l1_loss(pred_t, y, reduction=reduction)
         else:
@@ -428,24 +428,24 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
                 focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
             else:
                 ce_loss = F.binary_cross_entropy_with_logits(mc_logs, y, reduction="none")
-                p = (pred_t + 1) / 2
-                p_t = p * y + (1 - p) * (1 - y)
-                focal_loss = ce_loss * ((1 - p_t) ** self.gamma)
+                p = (pred_t + 1.) / 2.
+                p_t = p * y + (1. - p) * (1. - y)
+                focal_loss = ce_loss * ((1. - p_t) ** self.gamma)
                 if self.weight is not None:
-                    weight_t = self.weight * y + (1 - self.weight) * (1 - y)
+                    weight_t = self.weight * y + (1. - self.weight) * (1. - y)
                     focal_loss = weight_t * focal_loss
             if average: focal_loss = focal_loss.mean()
         else:
             focal_loss = 0.
 
         if self.alpha[1] > 0.:
-            p = (pred_t + 1) / 2
+            p = (pred_t + 1.) / 2.
             dice_loss = calc_dice_loss(p, y, average=average)
         else:
             dice_loss = 0.
 
         if self.alpha[2] > 0.:
-            y = (y * 2) - 1
+            y = (y * 2.) - 1.
             if self.extended_regression:
                 if self.use_l2:
                     reg_loss = 0.5 * (torch.exp(-sigma) * F.mse_loss(sigmoid(pred), y, reduction='none') + sigma)
