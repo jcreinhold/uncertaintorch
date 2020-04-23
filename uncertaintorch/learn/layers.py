@@ -10,8 +10,14 @@ Author: Jacob Reinhold (jacob.reinhold@jhu.edu)
 Created on: December 31, 2019
 """
 
-__all__ = ['Upconv3d', 'GeLU']
+__all__ = [
+    'ChannelAttention',
+    'GeLU',
+    'SelfAttention',
+    'Upconv3d'
+]
 
+import torch
 from torch import nn
 import torch.nn.functional as F
 
@@ -54,3 +60,42 @@ class Upconv3d(nn.Module):
 class GeLU(nn.Module):
     def forward(self, x):
         return F.gelu(x)
+
+
+class SelfAttention(nn.Module):
+    """ Self attention layer for 2d (implementation inspired by fastai library) """
+    def __init__(self, n_channels:int):
+        super().__init__()
+        self.query = nn.utils.spectral_norm(nn.Conv1d(n_channels, n_channels//8, 1))
+        self.key   = nn.utils.spectral_norm(nn.Conv1d(n_channels, n_channels//8, 1))
+        self.value = nn.utils.spectral_norm(nn.Conv1d(n_channels, n_channels, 1))
+        self.gamma = nn.Parameter(torch.Tensor([0.]))
+
+    def forward(self, x):
+        size = x.size()
+        x = x.view(*size[:2],-1)
+        f, g, h = self.query(x), self.key(x), self.value(x)
+        beta = F.softmax(torch.bmm(f.permute(0,2,1).contiguous(), g), dim=1)
+        o = self.gamma * torch.bmm(h, beta) + x
+        return o.view(*size).contiguous()
+
+
+class ChannelAttention(nn.Module):
+    def __init__(self, gate_channels, reduction_ratio=8):
+        super().__init__()
+        self.gate_channels = gate_channels
+        self.reduction_ratio = reduction_ratio
+        self.mlp = nn.Sequential(
+            nn.Linear(2 * gate_channels, gate_channels // reduction_ratio, bias=False),
+            nn.BatchNorm1d(gate_channels // reduction_ratio),
+            nn.ReLU(inplace=True),
+            nn.Linear(gate_channels // reduction_ratio, gate_channels))
+
+    def forward(self, x:torch.Tensor):
+        xf = x.flatten(start_dim=2)
+        mp, _ = xf.max(dim=2)
+        ap    = xf.mean(dim=2)
+        y = self.mlp(torch.cat((mp, ap), dim=1))
+        scale = torch.sigmoid(y)
+        for _ in range((x.ndimension()-2)): scale = scale.unsqueeze(-1)
+        return x * scale.expand_as(x)
