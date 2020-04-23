@@ -427,12 +427,9 @@ class HRNet(nn.Module):
         super().__init__()
 
         # stem net
-        self.conv1 = nn.Conv2d(ic, 40, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(ic, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.bn1 = BatchNorm2d(40, momentum=BN_MOMENTUM)
-        self.conv2 = nn.Conv2d(40, 64, kernel_size=3, stride=2, padding=1,
-                               bias=False)
-        self.bn2 = BatchNorm2d(64, momentum=BN_MOMENTUM)
+        self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=relu_inplace)
 
         num_blocks = 4
@@ -497,9 +494,9 @@ class HRNet(nn.Module):
                                                  scale=1,
                                                  dropout=0.05)
         ksz = 5
-        self.up1_head = nn.Sequential(
+        self.up_head = nn.Sequential(
             nn.ReflectionPad2d(ksz//2),
-            nn.Conv2d(ocr_mid_channels+40, ocr_mid_channels//2, ksz, bias=False),
+            nn.Conv2d(ocr_mid_channels+ic, ocr_mid_channels//2, ksz, bias=False),
             BatchNorm2d(ocr_mid_channels//2),
             nn.ReLU(inplace=relu_inplace),
             nn.ReflectionPad2d(3//2),
@@ -507,20 +504,10 @@ class HRNet(nn.Module):
             BatchNorm2d(ocr_mid_channels//2),
             nn.ReLU(inplace=relu_inplace)
         )
-        self.up2_head = nn.Sequential(
-            nn.ReflectionPad2d(ksz//2),
-            nn.Conv2d(ocr_mid_channels//2+ic, ocr_mid_channels//4, ksz, bias=False),
-            BatchNorm2d(ocr_mid_channels//4),
-            nn.ReLU(inplace=relu_inplace),
-            nn.ReflectionPad2d(3//2),
-            nn.Conv2d(ocr_mid_channels//4, ocr_mid_channels//4, 3, bias=False),
-            BatchNorm2d(ocr_mid_channels//4),
-            nn.ReLU(inplace=relu_inplace)
-        )
         self.out1_head = nn.Conv2d(
-            ocr_mid_channels//4, oc, kernel_size=1, stride=1, padding=0, bias=True)
+            ocr_mid_channels//2, oc, kernel_size=1, stride=1, padding=0, bias=True)
         self.out2_head = nn.Conv2d(
-            ocr_mid_channels//4, oc, kernel_size=1, stride=1, padding=0, bias=True)
+            ocr_mid_channels//2, oc, kernel_size=1, stride=1, padding=0, bias=True)
         self.aux_head = nn.Sequential(
             nn.Conv2d(last_inp_channels, last_inp_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
@@ -611,11 +598,6 @@ class HRNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        conv1_x = x.clone()
-        conv1_h, conv1_w = x.size(2), x.size(3)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu(x)
         x = self.layer1(x)
 
         x_list = []
@@ -666,14 +648,10 @@ class HRNet(nn.Module):
         context = self.ocr_gather_head(feats, out_aux)
         feats = self.ocr_distri_head(feats, context)
 
-        feats = F.interpolate(feats, size=(conv1_h, conv1_w),
-                              mode='bilinear', align_corners=ALIGN_CORNERS)
-        feats = torch.cat((feats, conv1_x), 1)
-        feats = self.up1_head(feats)
         feats = F.interpolate(feats, size=(orig_h, orig_w),
                               mode='bilinear', align_corners=ALIGN_CORNERS)
         feats = torch.cat((feats, orig), 1)
-        feats = self.up2_head(feats)
+        feats = self.up_head(feats)
         out1 = self.out1_head(feats)
         out2 = self.out2_head(feats)
         #out_aux_seg.append(out_aux)
