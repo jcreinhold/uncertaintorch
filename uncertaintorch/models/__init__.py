@@ -10,3 +10,4 @@ from .deeplab3d import *
 from .okulonet import *
 from .cbr import *
 from .tiramisu import *
+from .hrnet import *
