@@ -32,7 +32,7 @@ import torch.nn as nn
 import torch._utils
 import torch.nn.functional as F
 
-BatchNorm2d_class = BatchNorm2d = torch.nn.SyncBatchNorm
+BatchNorm2d_class = BatchNorm2d = torch.nn.BatchNorm2d
 relu_inplace = True
 ALIGN_CORNERS = True
 BN_MOMENTUM = 0.1
@@ -61,7 +61,7 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 class SpatialGather_Module(nn.Module):
     """
-        Aggregate the context features according to the initial 
+        Aggregate the context features according to the initial
         predicted probability distribution.
         Employ the soft-weighted method to aggregate the context.
     """
@@ -74,7 +74,7 @@ class SpatialGather_Module(nn.Module):
         batch_size, c, h, w = probs.size(0), probs.size(1), probs.size(2), probs.size(3)
         probs = probs.view(batch_size, c, -1)
         feats = feats.view(batch_size, feats.size(1), -1)
-        feats = feats.permute(0, 2, 1) # batch x hw x c 
+        feats = feats.permute(0, 2, 1) # batch x hw x c
         probs = F.softmax(self.scale * probs, dim=2)# batch x k x hw
         ocr_context = torch.matmul(probs, feats)\
         .permute(0, 2, 1).unsqueeze(3)# batch x k x c
@@ -94,10 +94,10 @@ class _ObjectAttentionBlock(nn.Module):
     Return:
         N X C X H X W
     '''
-    def __init__(self, 
-                 in_channels, 
-                 key_channels, 
-                 scale=1, 
+    def __init__(self,
+                 in_channels,
+                 key_channels,
+                 scale=1,
                  bn_type=None):
         super(_ObjectAttentionBlock, self).__init__()
         self.scale = scale
@@ -144,7 +144,7 @@ class _ObjectAttentionBlock(nn.Module):
 
         sim_map = torch.matmul(query, key)
         sim_map = (self.key_channels**-.5) * sim_map
-        sim_map = F.softmax(sim_map, dim=-1)   
+        sim_map = F.softmax(sim_map, dim=-1)
 
         # add bg context ...
         context = torch.matmul(sim_map, value)
@@ -157,14 +157,14 @@ class _ObjectAttentionBlock(nn.Module):
         return context
 
 class ObjectAttentionBlock2D(_ObjectAttentionBlock):
-    def __init__(self, 
-                 in_channels, 
-                 key_channels, 
-                 scale=1, 
+    def __init__(self,
+                 in_channels,
+                 key_channels,
+                 scale=1,
                  bn_type=None):
         super(ObjectAttentionBlock2D, self).__init__(in_channels,
                                                      key_channels,
-                                                     scale, 
+                                                     scale,
                                                      bn_type=bn_type)
 
 
@@ -173,17 +173,17 @@ class SpatialOCR_Module(nn.Module):
     Implementation of the OCR module:
     We aggregate the global object representation to update the representation for each pixel.
     """
-    def __init__(self, 
-                 in_channels, 
-                 key_channels, 
-                 out_channels, 
-                 scale=1, 
-                 dropout=0.1, 
+    def __init__(self,
+                 in_channels,
+                 key_channels,
+                 out_channels,
+                 scale=1,
+                 dropout=0.1,
                  bn_type=None):
         super(SpatialOCR_Module, self).__init__()
-        self.object_context_block = ObjectAttentionBlock2D(in_channels, 
-                                                           key_channels, 
-                                                           scale, 
+        self.object_context_block = ObjectAttentionBlock2D(in_channels,
+                                                           key_channels,
+                                                           scale,
                                                            bn_type)
         _in_channels = 2 * in_channels
 
@@ -427,10 +427,10 @@ class HRNet(nn.Module):
         super().__init__()
 
         # stem net
-        self.conv1 = nn.Conv2d(ic, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(ic, 40, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
+        self.bn1 = BatchNorm2d(40, momentum=BN_MOMENTUM)
+        self.conv2 = nn.Conv2d(40, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         self.bn2 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=relu_inplace)
@@ -468,7 +468,7 @@ class HRNet(nn.Module):
             block, fuse_method, num_inchannels)
 
         num_modules = 3
-        self.stage3_num_branches = 4
+        self.stage4_num_branches = 4
         num_blocks = (4, 4, 4, 4)
         num_channels = (48, 96, 192, 384)
         block = BasicBlock
@@ -499,13 +499,21 @@ class HRNet(nn.Module):
         ksz = 5
         self.up1_head = nn.Sequential(
             nn.ReflectionPad2d(ksz//2),
-            nn.Conv2d(ocr_mid_channels, ocr_mid_channels//2, ksz, bias=False),
+            nn.Conv2d(ocr_mid_channels+40, ocr_mid_channels//2, ksz, bias=False),
+            BatchNorm2d(ocr_mid_channels//2),
+            nn.ReLU(inplace=relu_inplace),
+            nn.ReflectionPad2d(3//2),
+            nn.Conv2d(ocr_mid_channels//2, ocr_mid_channels//2, 3, bias=False),
             BatchNorm2d(ocr_mid_channels//2),
             nn.ReLU(inplace=relu_inplace)
         )
         self.up2_head = nn.Sequential(
+            nn.ReflectionPad2d(ksz//2),
+            nn.Conv2d(ocr_mid_channels//2+ic, ocr_mid_channels//4, ksz, bias=False),
+            BatchNorm2d(ocr_mid_channels//4),
+            nn.ReLU(inplace=relu_inplace),
             nn.ReflectionPad2d(3//2),
-            nn.Conv2d(ocr_mid_channels//2, ocr_mid_channels//4, ksz, bias=False),
+            nn.Conv2d(ocr_mid_channels//4, ocr_mid_channels//4, 3, bias=False),
             BatchNorm2d(ocr_mid_channels//4),
             nn.ReLU(inplace=relu_inplace)
         )
@@ -521,7 +529,7 @@ class HRNet(nn.Module):
             nn.Conv2d(last_inp_channels, oc,
                       kernel_size=1, stride=1, padding=0, bias=True)
         )
-        
+
     def _make_transition_layer(
             self, num_channels_pre_layer, num_channels_cur_layer):
         num_branches_cur = len(num_channels_cur_layer)
@@ -598,10 +606,12 @@ class HRNet(nn.Module):
         return nn.Sequential(*modules), num_inchannels
 
     def forward(self, x):
+        orig = x.clone()
         orig_h, orig_w = x.size(2), x.size(3)
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        conv1_x = x.clone()
         conv1_h, conv1_w = x.size(2), x.size(3)
         x = self.conv2(x)
         x = self.bn2(x)
@@ -658,9 +668,11 @@ class HRNet(nn.Module):
 
         feats = F.interpolate(feats, size=(conv1_h, conv1_w),
                               mode='bilinear', align_corners=ALIGN_CORNERS)
+        feats = torch.cat((feats, conv1_x), 1)
         feats = self.up1_head(feats)
         feats = F.interpolate(feats, size=(orig_h, orig_w),
                               mode='bilinear', align_corners=ALIGN_CORNERS)
+        feats = torch.cat((feats, orig), 1)
         feats = self.up2_head(feats)
         out1 = self.out1_head(feats)
         out2 = self.out2_head(feats)
@@ -683,9 +695,9 @@ class HRNet(nn.Module):
             pretrained_dict = torch.load(pretrained, map_location={'cuda:0': 'cpu'})
             logger.info('=> loading pretrained model {}'.format(pretrained))
             model_dict = self.state_dict()
-            pretrained_dict = {k.replace('last_layer', 'aux_head').replace('model.', ''): v for k, v in pretrained_dict.items()}  
-            print(set(model_dict) - set(pretrained_dict))            
-            print(set(pretrained_dict) - set(model_dict))            
+            pretrained_dict = {k.replace('last_layer', 'aux_head').replace('model.', ''): v for k, v in pretrained_dict.items()}
+            print(set(model_dict) - set(pretrained_dict))
+            print(set(pretrained_dict) - set(model_dict))
             pretrained_dict = {k: v for k, v in pretrained_dict.items()
                                if k in model_dict.keys()}
             # for k, _ in pretrained_dict.items():
