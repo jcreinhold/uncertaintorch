@@ -427,21 +427,21 @@ class HRNet(nn.Module):
         super().__init__()
 
         # stem net
-        self.conv1 = nn.Conv2d(ic, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(ic, 32, kernel_size=7, stride=1, padding=3,
                                bias=False)
-        self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
+        self.bn1 = BatchNorm2d(32, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=relu_inplace)
 
         num_blocks = 4
-        num_channels = 64
+        num_channels = 32
         block = Bottleneck
-        self.layer1 = self._make_layer(block, 64, num_channels, num_blocks)
+        self.layer1 = self._make_layer(block, 32, num_channels, num_blocks)
         stage1_out_channel = block.expansion * num_channels
 
         num_modules = 1
         self.stage2_num_branches = 2
         num_blocks = (4, 4)
-        num_channels = (48, 96)
+        num_channels = (32, 64)
         block = BasicBlock
         fuse_method = 'SUM'
         num_inchannels = [n * block.expansion for n in num_channels]
@@ -454,7 +454,7 @@ class HRNet(nn.Module):
         num_modules = 4
         self.stage3_num_branches = 3
         num_blocks = (4, 4, 4)
-        num_channels = (48, 96, 192)
+        num_channels = (32, 64, 128)
         block = BasicBlock
         fuse_method = 'SUM'
         num_inchannels = [n * block.expansion for n in num_channels]
@@ -467,7 +467,7 @@ class HRNet(nn.Module):
         num_modules = 3
         self.stage4_num_branches = 4
         num_blocks = (4, 4, 4, 4)
-        num_channels = (48, 96, 192, 384)
+        num_channels = (32, 64, 128, 256)
         block = BasicBlock
         fuse_method = 'SUM'
         num_inchannels = [n * block.expansion for n in num_channels]
@@ -478,8 +478,17 @@ class HRNet(nn.Module):
             block, fuse_method, num_inchannels, multi_scale_output=True)
 
         last_inp_channels = np.int(np.sum(pre_stage_channels))
-        ocr_mid_channels = 256
-        ocr_key_channels = 512
+        ocr_mid_channels = 32
+        ocr_key_channels = 32
+
+        self.aux_head = nn.Sequential(
+            nn.Conv2d(last_inp_channels, last_inp_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+            BatchNorm2d(last_inp_channels),
+            nn.ReLU(inplace=relu_inplace),
+            nn.Conv2d(last_inp_channels, oc,
+                      kernel_size=1, stride=1, padding=0, bias=True)
+        )
 
         self.conv3x3_ocr = nn.Sequential(
             nn.Conv2d(last_inp_channels, ocr_mid_channels,
@@ -493,29 +502,10 @@ class HRNet(nn.Module):
                                                  out_channels=ocr_mid_channels,
                                                  scale=1,
                                                  dropout=0.05)
-        ksz = 5
-        self.up_head = nn.Sequential(
-            nn.ReflectionPad2d(ksz//2),
-            nn.Conv2d(ocr_mid_channels+ic, ocr_mid_channels//2, ksz, bias=False),
-            BatchNorm2d(ocr_mid_channels//2),
-            nn.ReLU(inplace=relu_inplace),
-            nn.ReflectionPad2d(3//2),
-            nn.Conv2d(ocr_mid_channels//2, ocr_mid_channels//2, 3, bias=False),
-            BatchNorm2d(ocr_mid_channels//2),
-            nn.ReLU(inplace=relu_inplace)
-        )
+
         self.out1_head = nn.Conv2d(
-            ocr_mid_channels//2, oc, kernel_size=1, stride=1, padding=0, bias=True)
-        self.out2_head = nn.Conv2d(
-            ocr_mid_channels//2, oc, kernel_size=1, stride=1, padding=0, bias=True)
-        self.aux_head = nn.Sequential(
-            nn.Conv2d(last_inp_channels, last_inp_channels,
-                      kernel_size=1, stride=1, padding=0, bias=False),
-            BatchNorm2d(last_inp_channels),
-            nn.ReLU(inplace=relu_inplace),
-            nn.Conv2d(last_inp_channels, oc,
-                      kernel_size=1, stride=1, padding=0, bias=True)
-        )
+            ocr_mid_channels, oc, kernel_size=1, stride=1, padding=0, bias=True)
+
 
     def _make_transition_layer(
             self, num_channels_pre_layer, num_channels_cur_layer):
@@ -593,11 +583,6 @@ class HRNet(nn.Module):
         return nn.Sequential(*modules), num_inchannels
 
     def forward(self, x):
-        orig = x.clone()
-        orig_h, orig_w = x.size(2), x.size(3)
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
         x = self.layer1(x)
 
         x_list = []
@@ -638,50 +623,12 @@ class HRNet(nn.Module):
                         mode='bilinear', align_corners=ALIGN_CORNERS)
         x3 = F.interpolate(x[3], size=(x0_h, x0_w),
                         mode='bilinear', align_corners=ALIGN_CORNERS)
-
         feats = torch.cat([x[0], x1, x2, x3], 1)
-        #out_aux_seg = []
         # ocr
         out_aux = self.aux_head(feats)
         # compute contrast feature
         feats = self.conv3x3_ocr(feats)
         context = self.ocr_gather_head(feats, out_aux)
         feats = self.ocr_distri_head(feats, context)
-
-        feats = F.interpolate(feats, size=(orig_h, orig_w),
-                              mode='bilinear', align_corners=ALIGN_CORNERS)
-        feats = torch.cat((feats, orig), 1)
-        feats = self.up_head(feats)
-        out1 = self.out1_head(feats)
-        out2 = self.out2_head(feats)
-        #out_aux_seg.append(out_aux)
-        #out_aux_seg.append(out)
-        return out1, out2
-
-    def init_weights(self, pretrained='',):
-        logger.info('=> init weights from normal distribution')
-        for name, m in self.named_modules():
-            if any(part in name for part in {'cls', 'aux', 'ocr'}):
-                # print('skipped', name)
-                continue
-            if isinstance(m, nn.Conv2d):
-                nn.init.normal_(m.weight, std=0.001)
-            elif isinstance(m, BatchNorm2d_class):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-        if os.path.isfile(pretrained):
-            pretrained_dict = torch.load(pretrained, map_location={'cuda:0': 'cpu'})
-            logger.info('=> loading pretrained model {}'.format(pretrained))
-            model_dict = self.state_dict()
-            pretrained_dict = {k.replace('last_layer', 'aux_head').replace('model.', ''): v for k, v in pretrained_dict.items()}
-            print(set(model_dict) - set(pretrained_dict))
-            print(set(pretrained_dict) - set(model_dict))
-            pretrained_dict = {k: v for k, v in pretrained_dict.items()
-                               if k in model_dict.keys()}
-            # for k, _ in pretrained_dict.items():
-                # logger.info(
-                #     '=> loading {} pretrained model {}'.format(k, pretrained))
-            model_dict.update(pretrained_dict)
-            self.load_state_dict(model_dict)
-        elif pretrained:
-            print('No such file {}. Cannot load pretrained weights.'.format(pretrained))
+        out = self.out_head(feats)
+        return out, out_aux
