@@ -503,7 +503,7 @@ class HRNet(nn.Module):
                                                  scale=1,
                                                  dropout=0.05)
 
-        self.out1_head = nn.Conv2d(
+        self.out_head = nn.Conv2d(
             ocr_mid_channels, oc, kernel_size=1, stride=1, padding=0, bias=True)
 
 
@@ -583,6 +583,9 @@ class HRNet(nn.Module):
         return nn.Sequential(*modules), num_inchannels
 
     def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
         x = self.layer1(x)
 
         x_list = []

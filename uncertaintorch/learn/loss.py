@@ -463,17 +463,19 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
 
 class MonsterLossAux(BinaryMaskLossSegmentation):
     """ use focal, dice, and l1 loss together """
-    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2., weight=None, use_l2=True):
+    def __init__(self, alpha=(1.,1.,1.), beta=25., use_mask=False, gamma=2.,
+                 weight=None, use_l2=True, balance_weights=(1.0, 0.4)):
         super().__init__(beta, use_mask)
         self.alpha = alpha
         self.weight = weight
         self.gamma = gamma
         self.use_l2 = use_l2
+        self.balance_weights = balance_weights
 
     def loss_fn(self, out, y, reduction='mean'):
         average = reduction == 'mean'
         loss = 0.
-        for pred in out:
+        for bw, pred in zip(self.balance_weights, out):
             pred_t = torch.tanh(pred)
 
             if self.alpha[0] > 0.:
@@ -504,6 +506,6 @@ class MonsterLossAux(BinaryMaskLossSegmentation):
             else:
                 reg_loss = 0.
 
-            loss += self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * reg_loss
+            loss += bw * (self.alpha[0] * focal_loss + self.alpha[1] * dice_loss + self.alpha[2] * reg_loss)
 
         return loss
