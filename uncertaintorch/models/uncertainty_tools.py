@@ -11,7 +11,8 @@ Created on: December 31, 2019
 """
 
 __all__ = ['UncertainBinarySegNet',
-           'UncertainNet']
+           'UncertainNet',
+           'turn_on_dropout_layers']
 
 import torch
 from torch import nn
