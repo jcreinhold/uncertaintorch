@@ -20,7 +20,7 @@ import torch.nn.functional as F
 from ..learn import *
 from ..util import *
 
-class UncertainBinarySegNet(nn.Module):
+class UncertainBinarySegNet:
 
     def binary_segmentation_uncertainty_predict(self, x, n_samp=50, eps=1e-6):
         logits, sigmas = [], []
