@@ -24,6 +24,7 @@ from torchvision.models import resnet
 from ..learn import *
 from ..util import *
 from .unet_tools import *
+from .uncertainty_tools import UncertainBinarySegNet
 
 model_urls = {
     'deeplabv3_resnet50_coco': None,
@@ -31,7 +32,7 @@ model_urls = {
 }
 
 
-class OkuloNet(nn.Module):
+class OkuloNet(nn.Module, UncertainBinarySegNet):
     def __init__(self, ic=1, oc=1, p=0., beta=25., bayesian=False, laplacian=True, segmentation=None,
                  fc=8, sc=3):
         super().__init__()
@@ -122,48 +123,6 @@ class OkuloNet(nn.Module):
         x = self.end(x)
         yhat, s = self.syn(x), self.unc(x)
         return yhat, s
-
-    def binary_segmentation_uncertainty_predict(self, x, n_samp=50, eps=1e-6):
-        logits, sigmas = [], []
-        for _ in range(n_samp):
-            logit, sigma = self.forward(x)
-            logits.append(logit.detach().cpu())
-            sigmas.append(sigma.detach().cpu())
-        logits = torch.stack(logits)
-        logit = logits.mean(dim=0)
-        probits = torch.sigmoid(logits)
-        epistemic = probits.var(dim=0, unbiased=True)
-        probit = probits.mean(dim=0)
-        entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
-        sigmas = torch.clamp_min(torch.stack(sigmas), -13.816)  # ~log(1e-6)
-        sigma = sigmas.mean(dim=0)
-        sigmas = torch.exp(sigmas)
-        aleatoric = sigmas.mean(dim=0)
-        epistemic2 = sigmas.var(dim=0, unbiased=True)
-        return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
-
-    def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
-        """ get segmentation uncertainties and other metrics during training for analysis """
-        state = self.training
-        self.eval()
-        with torch.no_grad():
-            y = y.detach().cpu()
-            logit, sigma, ep, en, al, ep2 = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
-            if self.criterion.weight is not None:
-                device = self.criterion.weight.device
-                self.criterion.weight = self.criterion.weight.cpu()
-            loss = self.criterion((logit, sigma), y)
-            sb = ep / (al + eps)
-            eu, au = ep.mean(), al.mean()
-            nu = en.mean()
-            su = sb.mean()
-            eu2 = ep2.mean()
-            pred = (logit >= 0)
-            ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
-        self.train(state)
-        if self.criterion.weight is not None:
-            self.criterion.weight = self.criterion.weight.to(device)
-        return loss, pred, (ep, en, al, ep2, sb), (eu, nu, au, eu2, su), (ds, js)
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):

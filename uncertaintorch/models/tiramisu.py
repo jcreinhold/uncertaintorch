@@ -17,6 +17,8 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 
+from .uncertainty_tools import UncertainBinarySegNet
+
 
 class DenseLayer(nn.Sequential):
     def __init__(self, in_channels, growth_rate):
@@ -104,7 +106,7 @@ def center_crop(layer, max_height, max_width):
     return layer[:, :, xy2:(xy2 + max_height), xy1:(xy1 + max_width)]
 
 
-class FCDenseNet(nn.Module):
+class FCDenseNet(nn.Module, UncertainBinarySegNet):
     # copied from https://github.com/bfortuner/pytorch_tiramisu
     # slightly changed to output range from -1 to 1
     def __init__(self, in_channels=3, down_blocks=(5,5,5,5,5),

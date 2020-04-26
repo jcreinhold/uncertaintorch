@@ -10,7 +10,8 @@ Author: Jacob Reinhold (jacob.reinhold@jhu.edu)
 Created on: December 31, 2019
 """
 
-__all__ = ['UncertainNet']
+__all__ = ['UncertainBinarySegNet',
+           'UncertainNet']
 
 import torch
 from torch import nn
@@ -18,6 +19,50 @@ import torch.nn.functional as F
 
 from ..learn import *
 from ..util import *
+
+class UncertainBinarySegNet(nn.Module):
+
+    def binary_segmentation_uncertainty_predict(self, x, n_samp=50, eps=1e-6):
+        logits, sigmas = [], []
+        for _ in range(n_samp):
+            logit, sigma = self.forward(x)
+            logits.append(logit.detach().cpu())
+            sigmas.append(sigma.detach().cpu())
+        logits = torch.stack(logits)
+        logit = logits.mean(dim=0)
+        probits = torch.sigmoid(logits)
+        epistemic = probits.var(dim=0, unbiased=True)
+        probit = probits.mean(dim=0)
+        entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
+        sigmas = torch.clamp_min(torch.stack(sigmas), -13.816)  # ~log(1e-6)
+        sigma = sigmas.mean(dim=0)
+        sigmas = torch.exp(sigmas)
+        aleatoric = sigmas.mean(dim=0)
+        epistemic2 = sigmas.var(dim=0, unbiased=True)
+        return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
+
+    def get_binary_segmentation_metrics(self, x, y, n_samp=50, eps=1e-6):
+        """ get segmentation uncertainties and other metrics during training for analysis """
+        state = self.training
+        self.eval()
+        with torch.no_grad():
+            y = y.detach().cpu()
+            logit, sigma, ep, en, al, ep2 = self.binary_segmentation_uncertainty_predict(x, n_samp, eps)
+            if self.criterion.weight is not None:
+                device = self.criterion.weight.device
+                self.criterion.weight = self.criterion.weight.cpu()
+            loss = self.criterion((logit, sigma), y)
+            sb = ep / (al + eps)
+            eu, au = ep.mean(), al.mean()
+            nu = en.mean()
+            su = sb.mean()
+            eu2 = ep2.mean()
+            pred = (logit >= 0)
+            ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
+        self.train(state)
+        if self.criterion.weight is not None:
+            self.criterion.weight = self.criterion.weight.to(device)
+        return loss, pred, (ep, en, al, ep2, sb), (eu, nu, au, eu2, su), (ds, js)
 
 
 class UncertainNet(nn.Module):
