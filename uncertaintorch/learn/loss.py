@@ -449,11 +449,11 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
             y = (y * 2.) - 1.
             if self.extended_regression:
                 if self.use_l2:
-                    reg_loss = 0.5 * (torch.exp(-sigma) * F.mse_loss(sigmoid(pred), y, reduction='none') + sigma)
+                    reg_loss = 0.5 * (torch.exp(-sigma) * F.mse_loss(pred_t, y, reduction='none') + sigma)
                 else:
-                    reg_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(sigmoid(pred), y, reduction='none')) + sigma
+                    reg_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(pred_t, y, reduction='none')) + sigma
             else:
-                reg_loss = F.mse_loss(p, y, reduction='none') if self.use_l2 else F.l1_loss(p, y, reduction='none')
+                reg_loss = F.mse_loss(pred_t, y, reduction='none') if self.use_l2 else F.l1_loss(pred_t, y, reduction='none')
             if average: reg_loss = torch.mean(reg_loss)
         else:
             reg_loss = 0.
