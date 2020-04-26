@@ -170,3 +170,8 @@ class UncertainNet(nn.Module):
         raise NotImplementedError
 
 
+def turn_on_dropout_layers(net):
+    def control_func(m):
+        classname = m.__class__.__name__
+        if 'Dropout' in classname: m.train()
+    net.apply(control_func)
