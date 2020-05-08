@@ -53,7 +53,7 @@ class Upconv3d(nn.Module):
     def forward(self, x):
         if self.pad is not None: x = self.pad(x)
         x = pixel_shuffle_3d(self.conv(x), self.sf)
-        if self.full: out = self.act(self.bn(x))
+        if self.full: x = self.act(self.bn(x))
         return x
 
 

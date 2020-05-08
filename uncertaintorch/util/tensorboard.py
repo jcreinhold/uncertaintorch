@@ -47,11 +47,11 @@ class TrainTB(TB):
             loss = loss.item() if hasattr(loss, 'item') else loss
             self.W.add_scalar('loss/train', loss, j)
             if seg is not None:
-                ds, js = seg
+                ds, isbi15 = seg
                 ds = ds.item() if hasattr(ds, 'item') else ds
-                js = js.item() if hasattr(js, 'item') else js
+                isbi15 = isbi15.item() if hasattr(isbi15, 'item') else isbi15
                 self.W.add_scalar('dice/train', ds, j)
-                self.W.add_scalar('jaccard/train', js, j)
+                self.W.add_scalar('isbi15/train', isbi15, j)
             if unc is not None:
                 if len(unc) == 3:
                     ep, al, sb = unc
@@ -74,11 +74,11 @@ class ValidTB(TB):
             loss = loss.item() if hasattr(loss, 'item') else loss
             self.W.add_scalar('loss/valid', loss, j)
             if seg is not None:
-                ds, js = seg
+                ds, isbi15 = seg
                 ds = ds.item() if hasattr(ds, 'item') else ds
-                js = js.item() if hasattr(js, 'item') else js
+                isbi15 = isbi15.item() if hasattr(isbi15, 'item') else isbi15
                 self.W.add_scalar('dice/valid', ds, j)
-                self.W.add_scalar('jaccard/valid', js, j)
+                self.W.add_scalar('isbi15/valid', isbi15, j)
             if unc is not None:
                 if len(unc) == 6:
                     epim, alim, sbim, ep, al, sb = unc
