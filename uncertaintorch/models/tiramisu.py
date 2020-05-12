@@ -205,6 +205,9 @@ class FCDenseNet(nn.Module, UncertainBinarySegNet):
         # out = self.softmax(out)
         return yhat, s
 
+    def _to_prob(self, x):
+        return (torch.tanh(x) + 1.) / 2
+
 
 def FCDenseNet57(n_classes):
     return FCDenseNet(

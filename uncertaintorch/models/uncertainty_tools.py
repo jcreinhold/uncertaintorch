@@ -23,6 +23,9 @@ from ..util import *
 
 class UncertainBinarySegNet:
 
+    def _to_prob(self, x):
+        return torch.sigmoid(x)
+
     def binary_segmentation_uncertainty_predict(self, x, n_samp=50, eps=1e-6):
         logits, sigmas = [], []
         for _ in range(n_samp):
@@ -31,13 +34,13 @@ class UncertainBinarySegNet:
             sigmas.append(sigma.detach().cpu())
         logits = torch.stack(logits)
         logit = logits.mean(dim=0)
-        probits = torch.sigmoid(logits)
+        probits = self._to_prob(logits)
         epistemic = probits.var(dim=0, unbiased=True)
         probit = probits.mean(dim=0)
-        entropy = -1 * (probit * (probit + eps).log() + ((1 - probit) * (1 - probit + eps).log()))  # entropy
+        entropy = -1 * (probit * (probit + eps).log2() + ((1 - probit) * (1 - probit + eps).log2()))  # entropy
         sigmas = torch.clamp_min(torch.stack(sigmas), -13.816)  # ~log(1e-6)
         sigma = sigmas.mean(dim=0)
-        sigmas = torch.exp(sigmas)
+        sigmas = 2. ** sigmas
         aleatoric = sigmas.mean(dim=0)
         epistemic2 = sigmas.var(dim=0, unbiased=True)
         return (logit, sigma, epistemic, entropy, aleatoric, epistemic2)
@@ -58,7 +61,7 @@ class UncertainBinarySegNet:
             nu = en.mean()
             su = sb.mean()
             eu2 = ep2.mean()
-            pred = (logit >= 0)
+            pred = (logit > 0.)
             ds, js = list_to_np((dice(pred, y), jaccard(pred, y)))
         self.train(state)
         if self.criterion.weight is not None:
