@@ -38,7 +38,7 @@ class UncertainBinarySegNet:
         epistemic = probits.var(dim=0, unbiased=True)
         probit = probits.mean(dim=0)
         entropy = -1 * (probit * (probit + eps).log2() + ((1 - probit) * (1 - probit + eps).log2()))  # entropy
-        sigmas = torch.clamp_min(torch.stack(sigmas), -13.816)  # ~log(1e-6)
+        sigmas = torch.clamp_min(torch.stack(sigmas), -19.93)  # ~log2(1e-6)
         sigma = sigmas.mean(dim=0)
         sigmas = 2. ** sigmas
         aleatoric = sigmas.mean(dim=0)
