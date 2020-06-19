@@ -75,7 +75,7 @@ class GaussianDiagLoss(MaskLoss):
 class LaplacianDiagLoss(MaskLoss):
     def loss_fn(self, out, y, reduction='mean'):
         yhat, s = out
-        loss = np.sqrt(2) * (torch.exp(-s) * F.l1_loss(yhat, y, reduction='none')) + s
+        loss = (torch.exp(-s) * F.l1_loss(yhat, y, reduction='none')) + s
         if reduction == 'mean': loss = torch.mean(loss)
         return loss
 
@@ -451,7 +451,7 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
                 if self.use_l2:
                     reg_loss = 0.5 * (torch.exp(-sigma) * F.mse_loss(pred_t, y, reduction='none') + sigma)
                 else:
-                    reg_loss = np.sqrt(2) * (torch.exp(-sigma) * F.l1_loss(pred_t, y, reduction='none')) + sigma
+                    reg_loss = (torch.exp(-sigma) * F.l1_loss(pred_t, y, reduction='none')) + sigma
             else:
                 reg_loss = F.mse_loss(pred_t, y, reduction='none') if self.use_l2 else F.l1_loss(pred_t, y, reduction='none')
             if average: reg_loss = torch.mean(reg_loss)
