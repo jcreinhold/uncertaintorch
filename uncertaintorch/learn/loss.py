@@ -420,21 +420,24 @@ class ExtendedMonsterLoss(BinaryMaskLossSegmentation):
         pred, sigma = out
         sigma = torch.clamp_min(sigma, self.mlv)
         dist = torch.distributions.Normal(pred, torch.exp(sigma))
-        x_hat = dist.rsample((self.nsamp,))
-        mc_logs = x_hat.mean(dim=0)
-        pred_t = torch.tanh(mc_logs)
+        mc_logs = dist.rsample((self.nsamp,))
+        pred_t = torch.tanh(mc_logs.mean(dim=0))
 
         if self.alpha[0] > 0.:
+            focal_loss = 0.
             if self.gamma == 0.:
-                focal_loss = F.binary_cross_entropy_with_logits(mc_logs, y, pos_weight=self.weight, reduction=reduction)
+                for mc_log in mc_logs:
+                    focal_loss += F.binary_cross_entropy_with_logits(mc_log, y, pos_weight=self.weight, reduction=reduction)
             else:
-                ce_loss = F.binary_cross_entropy_with_logits(mc_logs, y, reduction="none")
-                p = (pred_t + 1.) / 2.
-                p_t = p * y + (1. - p) * (1. - y)
-                focal_loss = ce_loss * ((1. - p_t) ** self.gamma)
-                if self.weight is not None:
-                    weight_t = self.weight * y + (1. - self.weight) * (1. - y)
-                    focal_loss = weight_t * focal_loss
+                for mc_log in mc_logs:
+                    ce_loss = F.binary_cross_entropy_with_logits(mc_log, y, reduction="none")
+                    mc_pred_t = torch.tanh(mc_log)
+                    p = (mc_pred_t + 1.) / 2.
+                    p_t = p * y + (1. - p) * (1. - y)
+                    focal_loss += (ce_loss * ((1. - p_t) ** self.gamma)) / self.nsamp
+                    if self.weight is not None:
+                        weight_t = self.weight * y + (1. - self.weight) * (1. - y)
+                        focal_loss *= weight_t
             if average: focal_loss = focal_loss.mean()
         else:
             focal_loss = 0.
